@@ -9,6 +9,7 @@ import MovieDetails from './pages/MovieDetails';
 import CategoryPage from './pages/CategoryPage';
 import SeriesPage from './pages/SeriesPage';
 import Favorites from './pages/Favorites';
+import InstallPWA from './components/InstallPWA';
 import { FavoritesProvider } from './context/FavoritesContext';
 import AdminLayout from './admin/AdminLayout';
 import Dashboard from './admin/pages/Dashboard';
@@ -20,6 +21,7 @@ import FeaturedManager from './admin/pages/FeaturedManager';
 import { getSections, initDefaultSections } from './firebase/sectionsService';
 import { initDefaultCategories } from './firebase/categoriesService';
 import { getFeatured } from './firebase/featuredService';
+import logo from './assets/Logo.png';
 import './index.css';
 
 function HomePage() {
@@ -43,7 +45,7 @@ function HomePage() {
   }, []);
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--bg-site)' }} dir="rtl" lang="ar">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden" style={{ background: 'var(--bg-site)' }} lang="ar">
       {/* Fixed Header overlays the hero */}
       <Header />
 
@@ -85,14 +87,7 @@ function HomePage() {
         <div className="container mx-auto px-6">
           <div className="flex flex-col items-center gap-5 text-center">
             <div className="flex items-center gap-2.5">
-              <div className="p-1.5 rounded-lg" style={{ background: 'linear-gradient(135deg, #ffd700, #ff8c00)' }}>
-                <svg className="w-6 h-6 text-black" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                </svg>
-              </div>
-              <span className="text-2xl font-black" style={{ fontFamily: 'Poppins, sans-serif', color: '#ffd700' }}>
-                TagFilm
-              </span>
+              <img src={logo} alt="TagFilm Logo" className="h-[140px] w-auto object-contain" />
             </div>
             <p className="text-gray-500 max-w-md font-arabic text-sm">وجهتك المفضلة لمشاهدة أحدث الأفلام والمسلسلات بجودة عالية</p>
             <p className="text-gray-600 text-xs">© 2026 TagFilm. جميع الحقوق محفوظة</p>
@@ -106,8 +101,8 @@ function HomePage() {
 function App() {
   return (
     <FavoritesProvider>
-      <div className="min-h-screen flex flex-col pb-24 lg:pb-0 bg-[#050514] text-white" style={{ fontFamily: 'Inter, Tajawal, sans-serif' }}>
-        <div className="flex-grow">
+      <div className="min-h-screen flex flex-col pb-24 lg:pb-0 bg-[#050514] text-white overflow-x-hidden" style={{ fontFamily: 'Inter, Tajawal, sans-serif' }} dir="rtl">
+        <div className="flex-grow w-full max-w-full">
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/movie/:id" element={<MovieDetails />} />
@@ -127,6 +122,7 @@ function App() {
           </Routes>
         </div>
         <MobileNav />
+        <InstallPWA />
       </div>
     </FavoritesProvider>
   );

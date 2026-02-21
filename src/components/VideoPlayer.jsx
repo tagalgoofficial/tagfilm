@@ -137,6 +137,14 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
         setCurrentTime(0);
     }, [src, introEnd]);
 
+    // التأكد من ضبط مستوى الصوت عند التحميل وإلغاء الكتم لو لزم الأمر
+    useEffect(() => {
+        const v = videoRef.current;
+        if (!v) return;
+        v.volume = volume;
+        v.muted = muted;
+    }, [volume, muted]);
+
     /* ---- fullscreen listener ---- */
     useEffect(() => {
         const handler = () => setFullscreen(!!document.fullscreenElement);
@@ -255,6 +263,8 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
                 ref={videoRef}
                 src={src}
                 poster={poster}
+                playsInline
+                muted={muted}
                 className="w-full h-full"
                 onClick={(e) => e.stopPropagation()}
                 style={{ background: '#000' }}

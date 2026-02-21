@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { FiSearch } from 'react-icons/fi';
 import { AiFillHeart } from 'react-icons/ai';
 import { Link } from 'react-router-dom';
+import logo from '../assets/Logo.png';
 import { useFavorites } from '../context/FavoritesContext';
 
 const Header = () => {
@@ -25,12 +26,13 @@ const Header = () => {
             style={{
                 background: scrolled
                     ? 'var(--bg-overlay)'
-                    : 'linear-gradient(to bottom, var(--bg-card) 0%, transparent 100%)',
-                backdropFilter: scrolled ? 'blur(12px)' : 'blur(4px)',
+                    : 'linear-gradient(to bottom, rgba(5,5,20,0.95) 0%, transparent 100%)',
+                backdropFilter: scrolled ? 'blur(20px)' : 'blur(4px)',
                 borderBottom: scrolled ? '1px solid var(--border-subtle)' : 'none',
+                paddingTop: 'var(--safe-top)',
             }}
         >
-            <div className="container mx-auto px-6 py-4 flex items-center justify-between gap-6" dir="rtl">
+            <div className="container mx-auto px-6 py-0 flex items-center justify-between gap-6" dir="rtl">
                 {/* Logo */}
                 <Link to="/">
                     <motion.div
@@ -38,14 +40,11 @@ const Header = () => {
                         whileTap={{ scale: 0.95 }}
                         className="flex items-center gap-2.5 flex-shrink-0"
                     >
-                        <div className="p-1.5 rounded-lg" style={{ background: 'linear-gradient(135deg, #ffd700, #ff8c00)', boxShadow: '0 0 15px rgba(255,215,0,0.35)' }}>
-                            <svg className="w-6 h-6 text-black" fill="currentColor" viewBox="0 0 24 24">
-                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                            </svg>
-                        </div>
-                        <span className="text-2xl font-black" style={{ fontFamily: 'Poppins, sans-serif', color: '#ffd700', letterSpacing: '0.5px', textShadow: '0 0 15px rgba(255,215,0,0.25)' }}>
-                            TagFilm
-                        </span>
+                        <img
+                            src={logo}
+                            alt="TagFilm Logo"
+                            className="h-[100px] sm:h-[130px] w-auto object-contain drop-shadow-[0_0_20px_rgba(255,215,0,0.4)]"
+                        />
                     </motion.div>
                 </Link>
 
@@ -64,14 +63,12 @@ const Header = () => {
                 </nav>
 
                 {/* Right side: Search + Favorites */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                     {/* Search */}
-                    <motion.div className="relative flex items-center">
-                        <AnimatedSearch open={searchOpen} onToggle={() => setSearchOpen(!searchOpen)} />
-                    </motion.div>
+                    <AnimatedSearch open={searchOpen} onToggle={() => setSearchOpen(!searchOpen)} />
 
-                    {/* Favorites Icon */}
-                    <Link to="/favorites">
+                    {/* Favorites Icon - Hidden on mobile because it's in bottom nav */}
+                    <Link to="/favorites" className="hidden sm:block">
                         <motion.div
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}

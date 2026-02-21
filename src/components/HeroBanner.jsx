@@ -93,8 +93,8 @@ const HeroBanner = ({ items = [] }) => {
             </AnimatePresence>
 
             {/* Content */}
-            <div className="relative z-10 h-full flex items-center" dir="rtl">
-                <div className="container mx-auto px-6 lg:px-16">
+            <div className="relative z-10 h-full flex items-center pb-24 sm:pb-16" dir="rtl">
+                <div className="container mx-auto px-6 lg:px-16 pt-20">
                     <AnimatePresence mode="wait" custom={direction}>
                         <motion.div
                             key={`content-${current}`}
@@ -126,27 +126,30 @@ const HeroBanner = ({ items = [] }) => {
 
                             {/* Logo / Title */}
                             {item.logo ? (
-                                <motion.img
-                                    src={item.logo}
-                                    alt={item.title}
+                                <motion.div
                                     initial={{ opacity: 0, y: 30 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.15 }}
-                                    className="max-h-28 object-contain mb-4"
-                                    style={{ filter: 'drop-shadow(0 0 20px rgba(0,0,0,0.8))' }}
-                                />
+                                    className="mb-8"
+                                >
+                                    <img
+                                        src={item.logo}
+                                        alt={item.title}
+                                        className="max-h-40 sm:max-h-64 object-contain"
+                                        style={{ filter: 'drop-shadow(0 0 35px rgba(0,0,0,0.9))' }}
+                                    />
+                                </motion.div>
                             ) : (
                                 <motion.h2
                                     initial={{ opacity: 0, y: 30 }}
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ delay: 0.15 }}
                                     className="font-black font-arabic mb-4 leading-tight"
-                                    style={{ fontSize: 'clamp(2rem, 4vw, 3.5rem)', textShadow: '0 2px 20px rgba(0,0,0,0.8)', color: '#fff' }}
+                                    style={{ fontSize: 'clamp(2.5rem, 5vw, 4.5rem)', textShadow: '0 2px 30px rgba(0,0,0,0.9)', color: '#fff' }}
                                 >
                                     {item.title}
                                 </motion.h2>
                             )}
-
                             {/* Meta Info Row */}
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
@@ -198,56 +201,79 @@ const HeroBanner = ({ items = [] }) => {
                                 {item.description}
                             </motion.p>
 
-                            {/* Action Buttons */}
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.4 }}
-                                className="flex items-center gap-4 flex-wrap"
-                            >
-                                <Link to={linkPath}>
+                            {/* Actions */}
+                            <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 mt-2 sm:mt-0">
+                                <Link to={linkPath} className="w-full sm:w-auto">
                                     <motion.button
                                         whileHover={{ scale: 1.05, boxShadow: '0 0 40px rgba(255,215,0,0.6)' }}
                                         whileTap={{ scale: 0.97 }}
-                                        className="flex items-center gap-2.5 px-8 py-3.5 rounded-full font-bold font-arabic text-black text-base"
+                                        className="w-full flex items-center justify-center gap-2.5 px-8 py-3.5 rounded-full font-bold font-arabic text-black text-sm sm:text-base"
                                         style={{ background: 'linear-gradient(135deg, #ffd700 0%, #ff8c00 100%)', boxShadow: '0 0 20px rgba(255,215,0,0.3)' }}
                                     >
                                         <AiFillPlayCircle className="text-xl" />
                                         شاهد الآن
                                     </motion.button>
                                 </Link>
-                                <Link to={linkPath}>
+                                <Link to={linkPath} className="w-full sm:w-auto">
                                     <motion.button
                                         whileHover={{ scale: 1.05, background: 'rgba(255,255,255,0.2)' }}
                                         whileTap={{ scale: 0.97 }}
-                                        className="flex items-center gap-2.5 px-6 py-3.5 rounded-full font-bold font-arabic text-white text-base"
+                                        className="w-full flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-full font-bold font-arabic text-white text-sm sm:text-base"
                                         style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)' }}
                                     >
                                         <BsInfoCircle className="text-lg" />
                                         التفاصيل
                                     </motion.button>
                                 </Link>
-                            </motion.div>
+                            </div>
                         </motion.div>
                     </AnimatePresence>
                 </div>
             </div>
 
-            {/* Slide Dots */}
+            {/* Cinematic Logo Selection Bar */}
             {items.length > 1 && (
-                <div className="absolute bottom-28 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2">
-                    {items.map((_, i) => (
-                        <button
-                            key={i}
-                            onClick={() => { setAutoPlay(false); goTo(i, i > current ? 1 : -1); }}
-                            className="transition-all duration-300 rounded-full"
-                            style={{
-                                width: i === current ? '32px' : '8px',
-                                height: '8px',
-                                background: i === current ? '#ffd700' : 'rgba(255,255,255,0.35)',
-                            }}
-                        />
-                    ))}
+                <div className="absolute bottom-4 sm:bottom-6 left-0 right-0 z-20 flex justify-center px-4">
+                    <div className="flex items-center gap-6 sm:gap-16 px-6 sm:px-14 py-4 sm:py-8 bg-black/50 backdrop-blur-3xl rounded-full border border-white/10 shadow-[0_25px_60px_rgba(0,0,0,0.7)] overflow-x-auto hide-scrollbar max-w-full sm:max-w-max mx-auto">
+                        {items.map((it, i) => (
+                            <button
+                                key={i}
+                                onClick={() => { setAutoPlay(false); goTo(i, i > current ? 1 : -1); }}
+                                className="group relative flex flex-col items-center flex-shrink-0 transition-all duration-500"
+                                style={{
+                                    opacity: i === current ? 1 : 0.45,
+                                    transform: i === current ? 'scale(1.1)' : 'scale(0.9)'
+                                }}
+                            >
+                                <div className="h-10 sm:h-24 flex items-center justify-center transition-all duration-500 group-hover:scale-110">
+                                    {(it.logo || it.titleLogo) ? (
+                                        <img
+                                            src={it.logo || it.titleLogo}
+                                            alt={it.title}
+                                            className="h-full w-auto object-contain max-w-[100px] sm:max-w-[240px]"
+                                            style={{
+                                                filter: i === current
+                                                    ? 'drop-shadow(0 0 15px rgba(255,12,12,0.6))'
+                                                    : 'grayscale(0.8) brightness(0.7)'
+                                            }}
+                                        />
+                                    ) : (
+                                        <span className="text-white font-black font-arabic text-sm sm:text-2xl whitespace-nowrap px-5 py-2.5 bg-white/5 rounded-2xl border border-white/10">
+                                            {it.title}
+                                        </span>
+                                    )}
+                                </div>
+
+                                {i === current && (
+                                    <motion.div
+                                        layoutId="heroNavIndicator"
+                                        className="absolute -bottom-2 w-3/4 h-1.5 bg-red-600 rounded-full"
+                                        style={{ boxShadow: '0 0 25px #ef4444, 0 0 50px rgba(239, 68, 68, 0.5)' }}
+                                    />
+                                )}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             )}
 
@@ -278,7 +304,7 @@ const HeroBanner = ({ items = [] }) => {
             {/* Mute Toggle */}
             <button
                 onClick={() => setMuted(!muted)}
-                className="absolute bottom-28 left-8 z-20 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200"
+                className="absolute bottom-24 sm:bottom-28 left-6 sm:left-8 z-20 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200"
                 style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.25)', backdropFilter: 'blur(8px)' }}
             >
                 {muted ? <MdVolumeOff className="text-white text-lg" /> : <MdVolumeUp className="text-white text-lg" />}

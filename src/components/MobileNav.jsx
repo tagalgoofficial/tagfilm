@@ -16,13 +16,13 @@ const MobileNav = () => {
     ];
 
     return (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[60] px-4 pb-4">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-[60] px-4 pb-[calc(1rem+var(--safe-bottom))]">
             <motion.div
                 initial={{ y: 50, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                className="relative mx-auto max-w-lg bg-white/10 dark:bg-black/60 backdrop-blur-3xl border border-white/10 rounded-[2rem] px-2 py-3 shadow-[0_-10px_40px_rgba(0,0,0,0.3)] flex items-center justify-around"
+                className="relative mx-auto max-w-lg bg-black/60 backdrop-blur-3xl border border-white/10 rounded-[2.5rem] px-2 py-3 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] flex items-center justify-around"
                 style={{
-                    boxShadow: '0 0 30px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.1)'
+                    boxShadow: '0 15px 35px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.1)'
                 }}
             >
                 {/* Minimalist Active Indicator Container */}
@@ -33,7 +33,7 @@ const MobileNav = () => {
                                 {currentPath === item.to && (
                                     <motion.div
                                         layoutId="activeTabMobileMinimal"
-                                        className="absolute -bottom-1 w-1.5 h-1.5 bg-yellow-400 rounded-full shadow-[0_0_10px_#ffd700]"
+                                        className="absolute -bottom-1.5 w-2 h-2 bg-yellow-400 rounded-full shadow-[0_0_15px_#ffd700]"
                                         initial={{ opacity: 0, scale: 0 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         exit={{ opacity: 0, scale: 0 }}
@@ -51,15 +51,15 @@ const MobileNav = () => {
                         <Link
                             key={item.id}
                             to={item.to}
-                            className="relative flex flex-col items-center justify-center flex-1 py-2"
+                            className="relative flex flex-col items-center justify-center flex-1 py-1.5"
                         >
                             <motion.div
                                 animate={{
-                                    scale: isActive ? 1.3 : 1,
-                                    y: isActive ? -4 : 0,
-                                    color: isActive ? '#ffd700' : 'rgba(255,255,255,0.4)'
+                                    scale: isActive ? 1.4 : 1,
+                                    y: isActive ? -5 : 0,
+                                    color: isActive ? '#ffd700' : 'rgba(255,255,255,0.35)'
                                 }}
-                                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                                transition={{ type: "spring", stiffness: 500, damping: 20 }}
                                 className="text-2xl relative"
                             >
                                 {item.icon}
@@ -68,7 +68,7 @@ const MobileNav = () => {
                                     <motion.span
                                         initial={{ scale: 0 }}
                                         animate={{ scale: 1 }}
-                                        className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-yellow-400 text-black text-[9px] font-black rounded-full flex items-center justify-center border border-black/20"
+                                        className="absolute -top-1.5 -right-2 w-4 h-4 bg-yellow-400 text-black text-[9px] font-black rounded-full flex items-center justify-center border border-black/20 shadow-lg"
                                     >
                                         {item.badge}
                                     </motion.span>
@@ -78,10 +78,13 @@ const MobileNav = () => {
                                 {isActive && (
                                     <motion.div
                                         layoutId="iconGlow"
-                                        className="absolute inset-0 bg-yellow-400/20 blur-lg rounded-full"
+                                        className="absolute inset-0 bg-yellow-400/25 blur-xl rounded-full"
                                     />
                                 )}
                             </motion.div>
+                            <span className={`text-[9px] font-arabic mt-1 mb-[-4px] transition-all duration-300 ${isActive ? 'text-yellow-400 opacity-100 font-bold' : 'text-white/30 opacity-0'}`}>
+                                {item.label}
+                            </span>
                         </Link>
                     )
                 })}

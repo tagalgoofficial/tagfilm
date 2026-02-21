@@ -104,6 +104,8 @@ const VideoPlayerModal = ({ isOpen, onClose, movieTitle }) => {
                                 className="w-full h-full"
                                 onTimeUpdate={handleTimeUpdate}
                                 onLoadedMetadata={handleLoadedMetadata}
+                                playsInline
+                                muted={isMuted}
                                 poster="https://image.tmdb.org/t/p/original/feSiISwgEpVzR1v3zv2n2AU4ANJ.jpg"
                             >
                                 <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4" />

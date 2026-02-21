@@ -6,6 +6,7 @@ import {
     MdViewCarousel, MdMenu, MdClose, MdSearch, MdArrowBack, MdStar
 } from 'react-icons/md';
 import { BiCameraMovie } from 'react-icons/bi';
+import logo from '../assets/Logo.png';
 
 const navItems = [
     { path: '/admin', label: 'لوحة التحكم', icon: MdDashboard, exact: true },
@@ -43,21 +44,13 @@ const AdminLayout = () => {
                         }}
                     >
                         {/* Logo */}
-                        <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
-                            <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl flex items-center justify-center"
-                                    style={{ background: 'linear-gradient(135deg, #ffd700, #ff8c00)' }}>
-                                    <MdMovieFilter className="text-black text-xl" />
-                                </div>
-                                <div>
-                                    <h1 className="text-lg font-black text-yellow-400" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                                        TagFilm
-                                    </h1>
-                                    <p className="text-xs text-gray-400">لوحة التحكم</p>
-                                </div>
-                            </div>
+                        <div className="flex flex-col items-center gap-6 px-4 py-10 border-b border-white/10 text-center">
+                            <img src={logo} alt="TagFilm Logo" className="h-[120px] w-auto object-contain" />
+                            <h1 className="text-xl font-black text-yellow-400" style={{ fontFamily: 'Poppins, sans-serif' }}>
+                                Admin Panel
+                            </h1>
                             <button onClick={() => setSidebarOpen(false)}
-                                className="text-gray-400 hover:text-white transition p-1 rounded-lg hover:bg-white/10">
+                                className="absolute top-4 left-4 text-gray-400 hover:text-white transition p-1 rounded-lg hover:bg-white/10">
                                 <MdClose className="text-xl" />
                             </button>
                         </div>

@@ -62,12 +62,12 @@ const MovieCard = ({ movie }) => {
     return (
         <Link to={linkPath} className="block">
             <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                whileInView={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 onHoverStart={() => setIsHovered(true)}
                 onHoverEnd={() => setIsHovered(false)}
-                className="relative group/card flex-shrink-0 w-72 cursor-pointer p-2"
+                className="relative group/card w-full cursor-pointer p-1 sm:p-2"
             >
                 {/* Ramadan Decorations */}
                 <AnimatePresence>
@@ -132,18 +132,18 @@ const MovieCard = ({ movie }) => {
                             )}
                         </div>
 
-                        {/* Favorite Button (Always visible on mobile/small screens, hover on desk) */}
-                        <div className="absolute top-4 right-4 z-40">
+                        {/* Favorite Button */}
+                        <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-40">
                             <motion.button
                                 whileHover={{ scale: 1.1 }}
                                 whileTap={{ scale: 0.9 }}
                                 onClick={handleFavorite}
-                                className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-md border transition-all duration-300 ${isFav
+                                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center backdrop-blur-md border transition-all duration-300 ${isFav
                                     ? 'bg-yellow-400 text-black border-yellow-400 shadow-[0_0_15px_rgba(255,215,0,0.5)]'
                                     : 'bg-black/40 text-white border-white/20 hover:border-yellow-400/50'
-                                    } ${isHovered ? 'opacity-100' : 'opacity-100 lg:opacity-0'}`}
+                                    } ${isHovered ? 'opacity-100' : 'opacity-100 sm:opacity-0'}`}
                             >
-                                {isFav ? <AiFillHeart className="text-xl" /> : <AiOutlineHeart className="text-xl" />}
+                                {isFav ? <AiFillHeart className="text-lg sm:text-xl" /> : <AiOutlineHeart className="text-lg sm:text-xl" />}
                             </motion.button>
                         </div>
 
@@ -170,18 +170,21 @@ const MovieCard = ({ movie }) => {
                     </div>
 
                     {/* Content Info */}
-                    <div className="relative p-7 z-20">
+                    <div className="relative p-4 sm:p-7 z-20">
                         <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent pointer-events-none" />
-                        <h3 className="relative text-main font-black text-xl mb-3 line-clamp-1 font-arabic group-hover/card:text-yellow-400 transition-colors duration-300">
+                        <h3 className="relative text-main font-black text-sm sm:text-xl mb-1 sm:mb-3 line-clamp-1 font-arabic group-hover/card:text-yellow-400 transition-colors duration-300">
                             {movie.titleAr || movie.title}
                         </h3>
                         <div className="relative flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <span className={`w-2 h-2 rounded-full ${type === 'series' ? 'bg-cyan-400' : 'bg-yellow-400'}`} />
-                                <span className="text-muted text-xs font-arabic font-bold uppercase tracking-widest">{type === 'series' ? 'مسلسل' : 'فيلم'}</span>
+                            <div className="flex items-center gap-1.5 sm:gap-2">
+                                <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${type === 'series' ? 'bg-cyan-400' : 'bg-yellow-400'}`} />
+                                <span className="text-muted text-[10px] sm:text-xs font-arabic font-bold uppercase tracking-widest">{type === 'series' ? 'مسلسل' : 'فيلم'}</span>
                             </div>
-                            {movie.duration && (
-                                <span className="text-gray-500 text-[10px] font-bold tracking-tighter">{movie.duration}</span>
+                            {movie.rating && (
+                                <div className="flex items-center gap-1 text-yellow-400 text-[10px] sm:text-xs">
+                                    <AiFillStar />
+                                    <span>{movie.rating}</span>
+                                </div>
                             )}
                         </div>
                     </div>

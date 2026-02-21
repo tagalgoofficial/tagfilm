@@ -136,16 +136,16 @@ const MovieDetails = () => {
                     </div>
 
                     {/* Content */}
-                    <div className="relative z-10 h-full container mx-auto px-6 lg:px-16 flex flex-col justify-center">
+                    <div className="relative z-10 h-full container mx-auto px-5 lg:px-16 flex flex-col justify-end lg:justify-center pb-12 lg:pb-32">
                         <motion.div
-                            initial={{ opacity: 0, x: 50 }}
+                            initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ duration: 0.8 }}
-                            className="max-w-2xl"
+                            className="max-w-2xl px-1"
                         >
                             {/* Type Badge */}
-                            <div className="flex items-center gap-2 mb-6">
-                                <span className="bg-yellow-400 text-black px-3 py-1 rounded-lg text-xs font-black font-arabic uppercase tracking-wider">
+                            <div className="flex items-center gap-2 mb-4 lg:mb-6">
+                                <span className="bg-yellow-400 text-black px-2.5 py-1 rounded-lg text-[10px] sm:text-xs font-black font-arabic uppercase tracking-wider">
                                     فيلم
                                 </span>
                                 {movie.isNew && (
@@ -157,39 +157,39 @@ const MovieDetails = () => {
 
                             {/* Logo or Title */}
                             {movie.logo ? (
-                                <img src={movie.logo} alt={movie.title} className="max-h-40 object-contain mb-8 drop-shadow-2xl" />
+                                <img src={movie.logo} alt={movie.title} className="max-h-24 sm:max-h-40 object-contain mb-6 sm:mb-8 drop-shadow-2xl" />
                             ) : (
-                                <h1 className="text-5xl lg:text-7xl font-black font-arabic mb-8 drop-shadow-lg leading-tight">
+                                <h1 className="text-3xl sm:text-5xl lg:text-7xl font-black font-arabic mb-6 sm:mb-8 drop-shadow-lg leading-tight">
                                     {movie.titleAr || movie.title}
                                 </h1>
                             )}
 
                             {/* Meta Info */}
-                            <div className="flex flex-wrap items-center gap-6 mb-8 text-sm lg:text-base font-bold">
+                            <div className="flex flex-wrap items-center gap-4 sm:gap-6 mb-6 sm:mb-8 text-xs sm:text-sm lg:text-base font-bold">
                                 <div className="flex items-center gap-1.5 text-yellow-400">
-                                    <AiFillStar className="text-xl" />
+                                    <AiFillStar className="text-lg sm:text-xl" />
                                     <span>{movie.rating}</span>
                                 </div>
-                                <span className="text-gray-300 font-arabic border-r border-white/20 pr-6">
+                                <span className="text-gray-300 font-arabic border-r border-white/20 pr-4 sm:pr-6">
                                     {movie.year}
                                 </span>
-                                <span className="text-gray-300 font-arabic border-r border-white/20 pr-6">
+                                <span className="text-gray-300 font-arabic border-r border-white/20 pr-4 sm:pr-6">
                                     {movie.duration}
                                 </span>
                                 {movie.quality && (
-                                    <span className="bg-white/10 px-3 py-1 rounded-lg text-xs border border-white/10 font-black">
+                                    <span className="bg-white/10 px-2 sm:px-3 py-1 rounded-lg text-[10px] sm:text-xs border border-white/10 font-black">
                                         {movie.quality}
                                     </span>
                                 )}
                             </div>
 
                             {/* Overview */}
-                            <p className="text-gray-200 text-lg lg:text-xl font-arabic leading-relaxed mb-10 line-clamp-3 max-w-2xl">
+                            <p className="text-gray-200 text-sm sm:text-lg lg:text-xl font-arabic leading-relaxed mb-8 sm:mb-10 line-clamp-3 max-w-2xl">
                                 {movie.overview}
                             </p>
 
                             {/* Actions */}
-                            <div className="flex flex-wrap gap-5">
+                            <div className="flex flex-col sm:flex-row flex-wrap gap-4 sm:gap-5">
                                 <motion.button
                                     whileHover={{ scale: 1.05, boxShadow: '0 0 40px rgba(255, 215, 0, 0.5)' }}
                                     whileTap={{ scale: 0.95 }}
@@ -197,9 +197,9 @@ const MovieDetails = () => {
                                         setPlayerMode(true);
                                         window.scrollTo({ top: 0, behavior: 'smooth' });
                                     }}
-                                    className="flex items-center gap-4 px-12 py-5 bg-yellow-400 text-black font-black rounded-2xl text-xl shadow-2xl transition-all font-arabic"
+                                    className="flex items-center justify-center gap-3 sm:gap-4 px-8 py-4 sm:px-12 sm:py-5 bg-yellow-400 text-black font-black rounded-xl sm:rounded-2xl text-lg sm:text-xl shadow-2xl transition-all font-arabic"
                                 >
-                                    <AiFillPlayCircle className="text-3xl" />
+                                    <AiFillPlayCircle className="text-2xl sm:text-3xl" />
                                     مشاهدة الآن
                                 </motion.button>
 
@@ -207,9 +207,9 @@ const MovieDetails = () => {
                                     whileHover={{ scale: 1.05, background: isFav ? 'rgba(255,215,0,0.15)' : 'rgba(255,255,255,0.15)' }}
                                     whileTap={{ scale: 0.95 }}
                                     onClick={() => toggleFavorite(movie)}
-                                    className={`flex items-center gap-4 px-10 py-5 ${isFav ? 'bg-yellow-400/20 border-yellow-400 text-yellow-400' : 'bg-white/10 border-white/10 text-white'} backdrop-blur-xl border rounded-2xl font-bold text-xl transition-all font-arabic`}
+                                    className={`flex items-center justify-center gap-3 sm:gap-4 px-8 py-4 sm:px-10 sm:py-5 ${isFav ? 'bg-yellow-400/20 border-yellow-400 text-yellow-400' : 'bg-white/10 border-white/10 text-white'} backdrop-blur-xl border rounded-xl sm:rounded-2xl font-bold text-lg sm:text-xl transition-all font-arabic`}
                                 >
-                                    {isFav ? <AiFillHeart className="text-3xl" /> : <AiOutlineHeart className="text-3xl" />}
+                                    {isFav ? <AiFillHeart className="text-2xl sm:text-3xl" /> : <AiOutlineHeart className="text-2xl sm:text-3xl" />}
                                     {isFav ? 'في المفضلة' : 'أضف للمفضلة'}
                                 </motion.button>
                             </div>

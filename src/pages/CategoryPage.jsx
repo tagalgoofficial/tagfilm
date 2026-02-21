@@ -100,21 +100,21 @@ const CategoryPage = () => {
         <div className="min-h-screen pb-20 transition-colors duration-500" style={{ background: 'var(--bg-site)' }} dir="rtl" lang="ar">
             <Header />
 
-            <main className="container mx-auto px-6 pt-32 lg:pt-40">
+            <main className="container mx-auto px-4 sm:px-6 pt-24 sm:pt-32 lg:pt-40">
                 {/* Header Section */}
-                <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 mb-16 px-2 lg:px-4">
+                <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 sm:gap-8 mb-8 sm:mb-16 px-1 lg:px-4">
                     <div className="relative">
                         <motion.div
                             initial={{ opacity: 0, x: 20 }}
                             whileInView={{ opacity: 1, x: 0 }}
-                            className="flex items-center gap-4 mb-4"
+                            className="flex items-center gap-3 sm:gap-4 mb-2 sm:mb-4"
                         >
-                            <div className="w-2 h-10 bg-gradient-to-b from-yellow-400 to-orange-500 rounded-full shadow-lg" />
-                            <h1 className="text-4xl lg:text-5xl font-black text-main font-arabic tracking-tight">
+                            <div className="w-1.5 h-8 sm:w-2 sm:h-10 bg-gradient-to-b from-yellow-400 to-orange-500 rounded-full shadow-lg" />
+                            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-main font-arabic tracking-tight">
                                 {categoryLabel}
                             </h1>
                         </motion.div>
-                        <nav className="flex items-center gap-2 text-muted text-sm font-arabic mr-6">
+                        <nav className="flex items-center gap-2 text-muted text-[10px] sm:text-sm font-arabic mr-4 sm:mr-6">
                             <Link to="/" className="hover:text-yellow-400 transition">الرئيسية</Link>
                             <span>/</span>
                             <span className="text-yellow-400 font-bold">{categoryLabel}</span>
@@ -122,14 +122,14 @@ const CategoryPage = () => {
                     </div>
 
                     {/* Stats or Filter */}
-                    <div className="flex items-center gap-4 text-xs font-arabic mr-6 md:mr-0">
-                        <div className="px-6 py-3 rounded-2xl bg-card border border-white/5 text-muted shadow-xl flex items-center gap-3">
-                            <div className="flex flex-col items-center border-l border-white/10 pl-3 ml-3">
-                                <span className="text-yellow-400 font-black text-lg">{moviesCount}</span>
+                    <div className="flex items-center gap-3 text-[10px] sm:text-xs font-arabic mr-4 md:mr-0">
+                        <div className="px-4 py-2 sm:px-6 sm:py-3 rounded-xl sm:rounded-2xl bg-card border border-white/5 text-muted shadow-xl flex items-center gap-2 sm:gap-3">
+                            <div className="flex flex-col items-center border-l border-white/10 pl-2 sm:pl-3 ml-2 sm:ml-3">
+                                <span className="text-yellow-400 font-black text-base sm:text-lg">{moviesCount}</span>
                                 <span>أفلام</span>
                             </div>
                             <div className="flex flex-col items-center">
-                                <span className="text-cyan-400 font-black text-lg">{seriesCount}</span>
+                                <span className="text-cyan-400 font-black text-base sm:text-lg">{seriesCount}</span>
                                 <span>مسلسلات</span>
                             </div>
                         </div>
@@ -137,7 +137,7 @@ const CategoryPage = () => {
                 </div>
 
                 {/* Search & Filters Section */}
-                <div className="flex flex-col gap-8 mb-12 px-2 lg:px-4">
+                <div className="flex flex-col gap-6 sm:gap-8 mb-10 sm:mb-12 px-1 lg:px-4">
                     {/* Search Bar */}
                     <div className="relative max-w-2xl w-full">
                         <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
@@ -150,17 +150,17 @@ const CategoryPage = () => {
                             placeholder={categoryId === 'series' ? "ابحث في المسلسلات..." : "ابحث في الأفلام..."}
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="w-full bg-card border border-white/5 rounded-2xl py-4 pr-12 pl-6 text-main font-arabic focus:outline-none focus:border-yellow-400/50 transition-all shadow-xl"
+                            className="w-full bg-card border border-white/5 rounded-xl sm:rounded-2xl py-3 sm:py-4 pr-12 pl-6 text-sm sm:text-base text-main font-arabic focus:outline-none focus:border-yellow-400/50 transition-all shadow-xl"
                         />
                     </div>
 
                     {/* Category Chips */}
-                    <div className="flex items-center gap-3 overflow-x-auto pb-4 no-scrollbar -mx-2 px-2">
+                    <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto pb-4 hide-scrollbar -mx-2 px-2">
                         <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={() => setActiveCategoryFilter('all')}
-                            className={`px-8 py-3 rounded-2xl font-arabic text-sm font-bold transition-all duration-300 whitespace-nowrap border ${activeCategoryFilter === 'all'
+                            className={`px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-arabic text-xs sm:text-sm font-bold transition-all duration-300 whitespace-nowrap border ${activeCategoryFilter === 'all'
                                 ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-black border-transparent shadow-[0_0_20px_rgba(255,215,0,0.3)]'
                                 : 'bg-card text-muted border-white/5 hover:border-white/20'
                                 }`}
@@ -175,7 +175,7 @@ const CategoryPage = () => {
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     onClick={() => setActiveCategoryFilter(cat.id)}
-                                    className={`px-8 py-3 rounded-2xl font-arabic text-sm font-bold transition-all duration-300 whitespace-nowrap border ${activeCategoryFilter === cat.id
+                                    className={`px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl font-arabic text-xs sm:text-sm font-bold transition-all duration-300 whitespace-nowrap border ${activeCategoryFilter === cat.id
                                         ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-black border-transparent shadow-[0_0_20px_rgba(255,215,0,0.3)]'
                                         : 'bg-card text-muted border-white/5 hover:border-white/20'
                                         }`}
@@ -188,16 +188,16 @@ const CategoryPage = () => {
 
                 {/* Content Grid */}
                 {loading ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-8 lg:gap-10">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-8 lg:gap-10">
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => (
-                            <div key={i} className="aspect-[2/3] rounded-[2rem] bg-card/50 animate-pulse border border-white/5" />
+                            <div key={i} className="aspect-[2/3] rounded-2xl sm:rounded-[2rem] bg-card/50 animate-pulse border border-white/5" />
                         ))}
                     </div>
                 ) : filtered.length > 0 ? (
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8 lg:gap-10"
+                        className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-8 lg:gap-10"
                     >
                         {filtered.map((item) => (
                             <MovieCard key={item.id} movie={item} />

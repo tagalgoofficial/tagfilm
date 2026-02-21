@@ -46,9 +46,9 @@ const Navigation = () => {
     }
 
     return (
-        <div className="container mx-auto px-6 py-6">
-            <div className="w-full px-8 py-6 border-2 border-white/30 rounded-3xl bg-white/5 backdrop-blur-sm">
-                <div className="flex items-center justify-between gap-6 flex-wrap">
+        <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-6">
+            <div className="w-full px-4 sm:px-8 py-4 sm:py-6 border-2 border-white/20 sm:border-white/30 rounded-2xl sm:rounded-3xl bg-white/5 backdrop-blur-sm overflow-hidden">
+                <div className="flex items-center justify-around sm:justify-between gap-2 sm:gap-6 flex-wrap">
                     {categories.map((category, index) => {
                         const Icon = ICON_MAP[category.icon] || HiViewGrid;
                         return (
