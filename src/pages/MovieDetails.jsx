@@ -19,6 +19,7 @@ const MovieDetails = () => {
     const [loading, setLoading] = useState(true);
     const [playerMode, setPlayerMode] = useState(false);
     const [activeServer, setActiveServer] = useState(0);
+    const [selectedPart, setSelectedPart] = useState(null); // null means main movie
     const { toggleFavorite, isFavorite } = useFavorites();
     const isFav = isFavorite(id);
 
@@ -43,6 +44,8 @@ const MovieDetails = () => {
             setLoading(false);
         };
         loadData();
+        setSelectedPart(null);
+        setActiveServer(0);
         window.scrollTo(0, 0);
     }, [id]);
 
@@ -66,8 +69,9 @@ const MovieDetails = () => {
         );
     }
 
-    const servers = movie.servers || [];
-    const currentLink = servers[activeServer]?.watchLink || movie.watchLink || '';
+    const currentMovie = selectedPart || movie;
+    const servers = currentMovie.servers || [];
+    const currentLink = servers[activeServer]?.watchLink || currentMovie.watchLink || '';
 
     const categoryLabel = categories.find(c => c.id === movie.category)?.label || movie.category;
     const subcategoryLabel = movie.subcategory; // Assuming subcategory is stored as name or we keep it as is for now
@@ -91,7 +95,10 @@ const MovieDetails = () => {
                                     <IoMdArrowBack className="text-2xl transform rotate-180" />
                                 </button>
                                 <div>
-                                    <h2 className="text-sm font-bold font-arabic">{movie.titleAr || movie.title}</h2>
+                                    <h2 className="text-sm font-bold font-arabic">
+                                        {movie.titleAr || movie.title}
+                                        {selectedPart && <span className="text-yellow-400 mr-2">- {selectedPart.name || `الجزء ${selectedPart.partNumber}`}</span>}
+                                    </h2>
                                     <p className="text-xs text-yellow-400 font-arabic">جارٍ التشغيل الآن...</p>
                                 </div>
                             </div>
@@ -136,7 +143,7 @@ const MovieDetails = () => {
                     </div>
 
                     {/* Content */}
-                    <div className="relative z-10 h-full container mx-auto px-5 lg:px-16 flex flex-col justify-end lg:justify-center pb-12 lg:pb-32">
+                    <div className="relative z-10 h-full container mx-auto px-5 lg:px-16 flex flex-col justify-center pt-60 sm:pt-72 pb-12 lg:pb-32">
                         <motion.div
                             initial={{ opacity: 0, x: 20 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -167,7 +174,7 @@ const MovieDetails = () => {
                             {/* Meta Info */}
                             <div className="flex flex-wrap items-center gap-4 sm:gap-6 mb-6 sm:mb-8 text-xs sm:text-sm lg:text-base font-bold">
                                 <div className="flex items-center gap-1.5 text-yellow-400">
-                                    <AiFillStar className="text-lg sm:text-xl" />
+                                    <AiFillStar className="text-lg sm:text-lg" />
                                     <span>{movie.rating}</span>
                                 </div>
                                 <span className="text-gray-300 font-arabic border-r border-white/20 pr-4 sm:pr-6">
@@ -199,7 +206,7 @@ const MovieDetails = () => {
                                     }}
                                     className="flex items-center justify-center gap-3 sm:gap-4 px-8 py-4 sm:px-12 sm:py-5 bg-yellow-400 text-black font-black rounded-xl sm:rounded-2xl text-lg sm:text-xl shadow-2xl transition-all font-arabic"
                                 >
-                                    <AiFillPlayCircle className="text-2xl sm:text-3xl" />
+                                    <AiFillPlayCircle className="text-2xl sm:text-2xl" />
                                     مشاهدة الآن
                                 </motion.button>
 
@@ -209,7 +216,7 @@ const MovieDetails = () => {
                                     onClick={() => toggleFavorite(movie)}
                                     className={`flex items-center justify-center gap-3 sm:gap-4 px-8 py-4 sm:px-10 sm:py-5 ${isFav ? 'bg-yellow-400/20 border-yellow-400 text-yellow-400' : 'bg-white/10 border-white/10 text-white'} backdrop-blur-xl border rounded-xl sm:rounded-2xl font-bold text-lg sm:text-xl transition-all font-arabic`}
                                 >
-                                    {isFav ? <AiFillHeart className="text-2xl sm:text-3xl" /> : <AiOutlineHeart className="text-2xl sm:text-3xl" />}
+                                    {isFav ? <AiFillHeart className="text-2xl sm:text-2xl" /> : <AiOutlineHeart className="text-2xl sm:text-2xl" />}
                                     {isFav ? 'في المفضلة' : 'أضف للمفضلة'}
                                 </motion.button>
                             </div>
@@ -217,9 +224,9 @@ const MovieDetails = () => {
                     </div>
 
                     {/* Scroll Indicator */}
-                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce opacity-40">
-                        <div className="w-8 h-12 border-2 border-white/30 rounded-full flex justify-center p-2">
-                            <div className="w-1.5 h-3 bg-white/50 rounded-full" />
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 animate-bounce opacity-30">
+                        <div className="w-6 h-10 border-2 border-white/20 rounded-full flex justify-center p-1.5">
+                            <div className="w-1 h-2 bg-white/40 rounded-full" />
                         </div>
                     </div>
                 </div>
@@ -256,6 +263,86 @@ const MovieDetails = () => {
                                                 <p className="text-xs text-gray-500 font-arabic truncate mt-1">{actor.character}</p>
                                             </div>
                                         </motion.div>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+                        {/* Parts Section */}
+                        {movie.parts && movie.parts.length > 0 && (
+                            <section className="bg-white/5 p-6 sm:p-8 rounded-[2rem] border border-white/10 shadow-xl">
+                                <h3 className="text-2xl font-black font-arabic mb-8 flex items-center gap-3 text-yellow-400">
+                                    <span className="w-2 h-8 bg-yellow-400 rounded-full" />
+                                    أجزاء السلسلة
+                                </h3>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    {/* Main Movie as Part 1 */}
+                                    <div className="group/part relative">
+                                        <button
+                                            onClick={() => { setSelectedPart(null); setActiveServer(0); setPlayerMode(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                            className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${selectedPart === null ? 'bg-yellow-400 border-transparent shadow-[0_0_30px_rgba(255,215,0,0.2)]' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                                        >
+                                            <div className="w-12 h-16 rounded-lg overflow-hidden flex-shrink-0 border border-white/10">
+                                                <img src={movie.poster} alt="" className="w-full h-full object-cover" />
+                                            </div>
+                                            <div className="text-right flex-1">
+                                                <p className={`font-black font-arabic text-sm ${selectedPart === null ? 'text-black' : 'text-white'}`}>الجزء الأول</p>
+                                                <p className={`text-xs font-arabic mt-1 ${selectedPart === null ? 'text-black/60' : 'text-gray-400'}`}>{movie.titleAr || movie.title}</p>
+                                            </div>
+                                        </button>
+
+                                        {/* Download button for main movie */}
+                                        {(() => {
+                                            const dlServer = movie.servers?.find(s => s.downloadLink) || movie.servers?.[0];
+                                            const dlLink = dlServer?.downloadLink || movie.downloadLink || dlServer?.watchLink || movie.watchLink;
+
+                                            if (!dlLink) return null;
+                                            return (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); window.location.href = dlLink; }}
+                                                    className={`absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all duration-300 font-arabic font-bold text-[10px] ${selectedPart === null ? 'bg-black/20 text-black hover:bg-black/30' : 'bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500 hover:text-black'}`}
+                                                    title="تحميل مباشر للجزء الأول"
+                                                >
+                                                    <BiDownload className="text-base" />
+                                                    <span>تحميل</span>
+                                                </button>
+                                            );
+                                        })()}
+                                    </div>
+
+                                    {/* Other Parts */}
+                                    {movie.parts.sort((a, b) => a.partNumber - b.partNumber).map((part, idx) => (
+                                        <div key={part.id} className="group/part relative">
+                                            <button
+                                                onClick={() => { setSelectedPart(part); setActiveServer(0); setPlayerMode(true); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                                className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${selectedPart?.id === part.id ? 'bg-yellow-400 border-transparent shadow-[0_0_30px_rgba(255,215,0,0.2)]' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}
+                                            >
+                                                <div className="w-12 h-16 rounded-lg overflow-hidden flex-shrink-0 border border-white/10">
+                                                    <img src={part.poster || movie.poster} alt="" className="w-full h-full object-cover" />
+                                                </div>
+                                                <div className="text-right flex-1">
+                                                    <p className={`font-black font-arabic text-sm ${selectedPart?.id === part.id ? 'text-black' : 'text-white'}`}>الجزء {part.partNumber}</p>
+                                                    <p className={`text-xs font-arabic mt-1 ${selectedPart?.id === part.id ? 'text-black/60' : 'text-gray-400'}`}>{part.name || 'بدون اسم'}</p>
+                                                </div>
+                                            </button>
+
+                                            {/* Download button for part */}
+                                            {(() => {
+                                                const pDlServer = part.servers?.find(s => s.downloadLink) || part.servers?.[0];
+                                                const pDlLink = pDlServer?.downloadLink || part.downloadLink || pDlServer?.watchLink || part.watchLink;
+
+                                                if (!pDlLink) return null;
+                                                return (
+                                                    <button
+                                                        onClick={(e) => { e.stopPropagation(); window.location.href = pDlLink; }}
+                                                        className={`absolute left-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all duration-300 font-arabic font-bold text-[10px] ${selectedPart?.id === part.id ? 'bg-black/20 text-black hover:bg-black/30' : 'bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500 hover:text-black'}`}
+                                                        title={`تحميل مباشر للجزء ${part.partNumber}`}
+                                                    >
+                                                        <BiDownload className="text-base" />
+                                                        <span>تحميل</span>
+                                                    </button>
+                                                );
+                                            })()}
+                                        </div>
                                     ))}
                                 </div>
                             </section>

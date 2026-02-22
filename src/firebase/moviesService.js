@@ -40,3 +40,38 @@ export const updateMovie = async (id, movieData) => {
 export const deleteMovie = async (id) => {
     await deleteDoc(doc(db, MOVIES_COL, id));
 };
+
+// إضافة جزء للفيلم
+export const addPart = async (movieId, partData) => {
+    const movieRef = doc(db, MOVIES_COL, movieId);
+    const snap = await getDoc(movieRef);
+    if (!snap.exists()) return;
+    const parts = snap.data().parts || [];
+    const newPart = {
+        id: `part_${Date.now()}`,
+        ...partData,
+    };
+    parts.push(newPart);
+    await updateDoc(movieRef, { parts, updatedAt: serverTimestamp() });
+    return newPart.id;
+};
+
+// تعديل جزء
+export const updatePart = async (movieId, partId, partData) => {
+    const movieRef = doc(db, MOVIES_COL, movieId);
+    const snap = await getDoc(movieRef);
+    if (!snap.exists()) return;
+    const parts = snap.data().parts.map(p =>
+        p.id === partId ? { ...p, ...partData } : p
+    );
+    await updateDoc(movieRef, { parts, updatedAt: serverTimestamp() });
+};
+
+// حذف جزء
+export const deletePart = async (movieId, partId) => {
+    const movieRef = doc(db, MOVIES_COL, movieId);
+    const snap = await getDoc(movieRef);
+    if (!snap.exists()) return;
+    const parts = snap.data().parts.filter(p => p.id !== partId);
+    await updateDoc(movieRef, { parts, updatedAt: serverTimestamp() });
+};

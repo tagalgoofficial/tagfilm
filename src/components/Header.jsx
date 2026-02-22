@@ -32,42 +32,46 @@ const Header = () => {
                 paddingTop: 'var(--safe-top)',
             }}
         >
-            <div className="container mx-auto px-6 py-0 flex items-center justify-between gap-6" dir="rtl">
-                {/* Logo */}
-                <Link to="/">
-                    <motion.div
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="flex items-center gap-2.5 flex-shrink-0"
-                    >
-                        <img
-                            src={logo}
-                            alt="TagFilm Logo"
-                            className="h-[100px] sm:h-[130px] w-auto object-contain drop-shadow-[0_0_20px_rgba(255,215,0,0.4)]"
-                        />
-                    </motion.div>
-                </Link>
+            <div className="container mx-auto px-6 py-0 flex items-center justify-between" dir="rtl">
+                {/* Right Side: Logo + Navigation Links */}
+                <div className="flex items-center gap-10">
+                    <Link to="/">
+                        <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="flex items-center gap-2.5 flex-shrink-0"
+                        >
+                            <img
+                                src={logo}
+                                alt="TagFilm Logo"
+                                className="h-[60px] sm:h-[80px] w-auto object-contain drop-shadow-[0_0_20px_rgba(255,215,0,0.3)]"
+                            />
+                        </motion.div>
+                    </Link>
 
-                {/* Nav links (center - hidden on mobile) */}
-                <nav className="hidden lg:flex items-center gap-6">
-                    {[
-                        { label: 'الرئيسية', to: '/' },
-                        { label: 'أفلام', to: '/category/movies' },
-                        { label: 'مسلسلات', to: '/category/series' },
-                    ].map(link => (
-                        <Link key={link.to} to={link.to}
-                            className={`font-arabic text-sm font-medium transition-colors duration-200 hover:text-yellow-400 ${scrolled ? 'text-gray-600' : 'text-gray-300'}`}>
-                            {link.label}
-                        </Link>
-                    ))}
-                </nav>
+                    {/* Nav links */}
+                    <nav className="hidden lg:flex items-center gap-8">
+                        {[
+                            { label: 'الرئيسية', to: '/' },
+                            { label: 'الأفلام', to: '/category/movies' },
+                            { label: 'المسلسلات', to: '/category/series' },
+                            { label: 'البرامج التلفزيونية', to: '/category/tv-shows' },
+                            { label: 'رمضان', to: '/category/ramadan' },
+                            { label: 'أطفال', to: '/category/kids' },
+                        ].map(link => (
+                            <Link key={link.to} to={link.to}
+                                className="font-arabic text-sm font-bold transition-all duration-300 relative group/link text-white">
+                                {link.label}
+                                <span className="absolute -bottom-1 right-0 w-0 h-0.5 bg-yellow-400 transition-all duration-300 group-hover/link:w-full" />
+                            </Link>
+                        ))}
+                    </nav>
+                </div>
 
-                {/* Right side: Search + Favorites */}
-                <div className="flex items-center gap-2 sm:gap-3">
-                    {/* Search */}
+                {/* Left Side: Search + Favorites */}
+                <div className="flex items-center gap-2 sm:gap-4">
                     <AnimatedSearch open={searchOpen} onToggle={() => setSearchOpen(!searchOpen)} />
 
-                    {/* Favorites Icon - Hidden on mobile because it's in bottom nav */}
                     <Link to="/favorites" className="hidden sm:block">
                         <motion.div
                             whileHover={{ scale: 1.1 }}

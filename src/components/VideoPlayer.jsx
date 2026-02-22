@@ -47,6 +47,11 @@ const SettingsIcon = () => (
         <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z" />
     </svg>
 );
+const CastIcon = () => (
+    <svg viewBox="0 0 24 24" fill="currentColor" className="w-full h-full">
+        <path d="M1,18v3h3C4,19.34,2.66,18,1,18z M1,14v2c2.76,0,5,2.24,5,5h2C8,17.13,4.87,14,1,14z M1,10v2c4.97,0,9,4.03,9,9h2 C12,15.03,6.97,10,1,10z M21,3H3C1.9,3,1,3.9,1,5v3h2V5h18v14h-7v2h7c1.1,0,2-0.9,2-2V5C23,3.9,22.1,3,21,3z" />
+    </svg>
+);
 
 
 const formatTime = (secs) => {
@@ -76,12 +81,21 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
     const [showControls, setShowControls] = useState(true);
     const [buffered, setBuffered] = useState(0);
     const [showSkipIntro, setShowSkipIntro] = useState(introEnd > 0);
+    const [volumeBoost, setVolumeBoost] = useState(1);
+    const audioCtxRef = useRef(null);
+    const gainNodeRef = useRef(null);
+    const sourceRef = useRef(null);
+
+    const [useProxy, setUseProxy] = useState(false);
+    const [timeToRestore, setTimeToRestore] = useState(null);
+
     const [playbackRate, setPlaybackRate] = useState(1);
     const [showSettings, setShowSettings] = useState(false);
     const [loading, setLoading] = useState(true);
     const [seeking, setSeeking] = useState(false);
     const [showVolumeSlider, setShowVolumeSlider] = useState(false);
     const [doubleTapSide, setDoubleTapSide] = useState(null); // 'left' | 'right'
+    const [castAvailable, setCastAvailable] = useState(false);
 
     /* ---- تلاشي أدوات التحكم ---- */
     const resetHideTimer = useCallback(() => {
@@ -110,7 +124,15 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
                 setShowSkipIntro(false);
             }
         };
-        const onLoaded = () => { setDuration(v.duration); setLoading(false); };
+        const onLoaded = () => {
+            setDuration(v.duration);
+            setLoading(false);
+            if (timeToRestore !== null) {
+                v.currentTime = timeToRestore;
+                setTimeToRestore(null);
+                if (playing) v.play();
+            }
+        };
         const onWaiting = () => setLoading(true);
         const onPlaying = () => setLoading(false);
         const onPlay = () => setPlaying(true);
@@ -137,7 +159,6 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
         setCurrentTime(0);
     }, [src, introEnd]);
 
-    // التأكد من ضبط مستوى الصوت عند التحميل وإلغاء الكتم لو لزم الأمر
     useEffect(() => {
         const v = videoRef.current;
         if (!v) return;
@@ -145,11 +166,26 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
         v.muted = muted;
     }, [volume, muted]);
 
+    /* ---- التحقق من دعم البث في المتصفح ---- */
+    useEffect(() => {
+        const v = videoRef.current;
+        if (!v) return;
+
+        // التحقق من وجود واجهات البرمجة اللازمة للبث (Chrome/Safari)
+        const supported = !!(v.remote?.prompt || v.webkitShowPlaybackTargetPicker);
+        setCastAvailable(supported);
+    }, [src]);
+
     /* ---- fullscreen listener ---- */
     useEffect(() => {
         const handler = () => setFullscreen(!!document.fullscreenElement);
         document.addEventListener('fullscreenchange', handler);
-        return () => document.removeEventListener('fullscreenchange', handler);
+        return () => {
+            document.removeEventListener('fullscreenchange', handler);
+            if (audioCtxRef.current) {
+                audioCtxRef.current.close();
+            }
+        };
     }, []);
 
     /* ---- keyboard ---- */
@@ -198,10 +234,48 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
     };
 
     const toggleFullscreen = () => {
+        const v = videoRef.current;
         if (!document.fullscreenElement) {
-            containerRef.current?.requestFullscreen();
+            if (containerRef.current?.requestFullscreen) {
+                containerRef.current.requestFullscreen();
+            } else if (v?.webkitEnterFullscreen) {
+                // Support for iOS
+                v.webkitEnterFullscreen();
+            }
         } else {
-            document.exitFullscreen();
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    };
+
+    const handleCast = async () => {
+        const v = videoRef.current;
+        if (!v) return;
+
+        try {
+            if (v.remote?.prompt) {
+                await v.remote.prompt();
+            } else if (v.webkitShowPlaybackTargetPicker) {
+                v.webkitShowPlaybackTargetPicker();
+            } else {
+                alert('خاصية البث غير متوفرة في هذا المتصفح');
+            }
+        } catch (error) {
+            console.error('Casting error:', error);
+
+            // تخصيص الرسائل بناءً على نوع الخطأ
+            if (error.name === 'NotFoundError') {
+                alert('لم يتم العثور على أجهزة بث متاحة. تأكد من تشغيل التلفاز وتوصيله بنفس شبكة الواي فاي.');
+            } else if (error.name === 'NotAllowedError') {
+                // المستخدم أغلق القائمة - لا نفعل شيئاً
+            } else if (error.name === 'SecurityError') {
+                alert('خطأ في الأمان: قد تتطلب خاصية البث اتصال HTTPS آمن للعمل على هذا المتصفح.');
+            } else if (error.name === 'NotSupportedError') {
+                alert('هذا المتصفح أو البروتوكول لا يدعم البث في الوقت الحالي.');
+            } else {
+                alert(`حدث خطأ أثناء محاولة البث: ${error.message || 'خطأ غير معروف'}`);
+            }
         }
     };
 
@@ -217,7 +291,71 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
         if (!v) return;
         v.playbackRate = rate;
         setPlaybackRate(rate);
-        setShowSettings(false);
+    };
+
+    const handleProxyError = () => {
+        if (useProxy) {
+            console.warn("CORS Proxy failed, falling back to direct URL.");
+            setUseProxy(false);
+            setVolumeBoost(1);
+            if (audioCtxRef.current) {
+                gainNodeRef.current.gain.setTargetAtTime(1, audioCtxRef.current.currentTime, 0.1);
+            }
+            alert("⚠️ السيرفر الوسيط واجه مشكلة في تحميل هذا الملف الكبير جداً. تم التبديل للوضع العادي (بدون تضخيم) لضمان استمرار المشاهدة.");
+        }
+    };
+
+    const handleBoost = async (level) => {
+        if (!videoRef.current) return;
+
+        // إذا كان التضخيم أكبر من 1 والسيرفر يمنع ذلك، نقوم بتفعيل البروكسي
+        const isCrossOrigin = (url) => {
+            try {
+                const origin = window.location.origin;
+                const target = new URL(url, window.location.origin).origin;
+                return origin !== target;
+            } catch { return false; }
+        };
+
+        const needsProxy = level > 1 && isCrossOrigin(src);
+
+        if (needsProxy && !useProxy) {
+            setTimeToRestore(videoRef.current.currentTime);
+            setUseProxy(true);
+            setVolumeBoost(level);
+            return; // سيكتمل التفعيل بعد إعادة تحميل الفيديو تحت البروكسي
+        } else if (level === 1 && useProxy) {
+            setTimeToRestore(videoRef.current.currentTime);
+            setUseProxy(false);
+            setVolumeBoost(1);
+            if (audioCtxRef.current) {
+                gainNodeRef.current.gain.setTargetAtTime(1, audioCtxRef.current.currentTime, 0.1);
+            }
+            return;
+        }
+
+        try {
+            if (!audioCtxRef.current) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtxRef.current = new AudioContext();
+                gainNodeRef.current = audioCtxRef.current.createGain();
+                sourceRef.current = audioCtxRef.current.createMediaElementSource(videoRef.current);
+
+                sourceRef.current.connect(gainNodeRef.current);
+                gainNodeRef.current.connect(audioCtxRef.current.destination);
+            }
+
+            if (audioCtxRef.current.state === 'suspended') {
+                await audioCtxRef.current.resume();
+            }
+
+            gainNodeRef.current.gain.setTargetAtTime(level, audioCtxRef.current.currentTime, 0.1);
+            setVolumeBoost(level);
+        } catch (err) {
+            console.error("Volume boost error:", err);
+            // إذا فشل البروكسي أيضاً
+            alert("⚠️ عذراً، تعذر تضخيم الصوت لهذا السيرفر حتى مع استخدام البروكسي.");
+        }
     };
 
     /* ---- شريط التقدم ---- */
@@ -261,12 +399,15 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
             {/* الفيديو */}
             <video
                 ref={videoRef}
-                src={src}
+                src={useProxy ? `https://api.allorigins.win/raw?url=${encodeURIComponent(src)}` : src}
                 poster={poster}
                 playsInline
+                crossOrigin={useProxy ? "anonymous" : undefined}
+                x-webkit-airplay="allow"
                 muted={muted}
                 className="w-full h-full"
                 onClick={(e) => e.stopPropagation()}
+                onError={handleProxyError}
                 style={{ background: '#000' }}
             />
 
@@ -365,15 +506,36 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
                                             style={{ background: 'rgba(10,10,25,0.97)', border: '1px solid rgba(255,215,0,0.2)', backdropFilter: 'blur(20px)' }}
                                             dir="rtl"
                                         >
-                                            <p className="text-gray-400 text-xs px-4 pt-3 pb-1 font-arabic font-bold">سرعة التشغيل</p>
-                                            {[0.5, 0.75, 1, 1.25, 1.5, 2].map(r => (
-                                                <button key={r} onClick={() => changeSpeed(r)}
-                                                    className={`w-full px-4 py-2.5 text-right text-sm font-arabic transition hover:bg-white/10 flex items-center justify-between
-                                                    ${playbackRate === r ? 'text-yellow-400 font-bold' : 'text-gray-200'}`}>
-                                                    <span>{r === 1 ? 'عادي' : `${r}x`}</span>
-                                                    {playbackRate === r && <span className="text-yellow-400">✓</span>}
-                                                </button>
-                                            ))}
+                                            <div className="flex flex-col gap-1 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                                                {/* Speed Section */}
+                                                <div className="border-b border-white/5 pb-2">
+                                                    <p className="text-gray-400 text-[10px] px-4 pt-3 pb-1 font-arabic font-bold uppercase tracking-wider">سرعة التشغيل</p>
+                                                    <div className="grid grid-cols-3 gap-1 px-2">
+                                                        {[0.5, 1, 1.25, 1.5, 2].map(r => (
+                                                            <button key={r} onClick={() => changeSpeed(r)}
+                                                                className={`px-2 py-2 rounded-lg text-center text-xs font-arabic transition ${playbackRate === r ? 'bg-yellow-400 text-black font-bold' : 'text-gray-300 hover:bg-white/10'}`}>
+                                                                {r === 1 ? 'عادي' : `${r}x`}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* Volume Boost Section */}
+                                                <div className="pb-3">
+                                                    <p className="text-cyan-400 text-[10px] px-4 pt-3 pb-1 font-arabic font-bold uppercase tracking-wider flex items-center gap-2">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                                                        تضخيم الصوت (Boost)
+                                                    </p>
+                                                    <div className="grid grid-cols-3 gap-1 px-2">
+                                                        {[1, 2, 3, 4, 5].map(b => (
+                                                            <button key={b} onClick={() => handleBoost(b)}
+                                                                className={`px-2 py-2 rounded-lg text-center text-xs font-arabic transition ${volumeBoost === b ? 'bg-cyan-500 text-black font-bold' : 'text-gray-300 hover:bg-white/10'}`}>
+                                                                {b === 1 ? 'إيقاف' : `${b}x`}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
@@ -466,15 +628,30 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
 
                             {/* أزرار الصوت والشاشة الكاملة */}
                             <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
+                                {/* اليسار: تكبير وبث */}
+                                <div className="flex items-center gap-4">
+                                    <button onClick={toggleFullscreen} className="w-6 h-6 text-white/80 hover:text-white transition">
+                                        <FullscreenIcon active={fullscreen} />
+                                    </button>
+                                    {castAvailable && (
+                                        <button onClick={handleCast} className="w-6 h-6 text-white/80 hover:text-white transition">
+                                            <CastIcon />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* اليمين: تشغيل وصوت وسرعة */}
+                                <div className="flex items-center gap-4">
+                                    {/* السرعة */}
+                                    {playbackRate !== 1 && (
+                                        <span className="text-yellow-400 text-xs font-bold">{playbackRate}x</span>
+                                    )}
+
                                     {/* الصوت */}
                                     <div className="flex items-center gap-2"
                                         onMouseEnter={() => setShowVolumeSlider(true)}
                                         onMouseLeave={() => setShowVolumeSlider(false)}
                                     >
-                                        <button onClick={toggleMute} className="w-6 h-6 text-white/80 hover:text-white transition">
-                                            <VolumeIcon level={muted || volume === 0 ? 0 : volume} />
-                                        </button>
                                         <AnimatePresence>
                                             {showVolumeSlider && (
                                                 <motion.input
@@ -489,17 +666,18 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
                                                 />
                                             )}
                                         </AnimatePresence>
+                                        <button onClick={toggleMute} className="w-6 h-6 text-white/80 hover:text-white transition">
+                                            <VolumeIcon level={muted || volume === 0 ? 0 : volume} />
+                                        </button>
                                     </div>
-                                    {/* السرعة */}
-                                    {playbackRate !== 1 && (
-                                        <span className="text-yellow-400 text-xs font-bold">{playbackRate}x</span>
-                                    )}
-                                </div>
 
-                                {/* الشاشة الكاملة */}
-                                <button onClick={toggleFullscreen} className="w-6 h-6 text-white/80 hover:text-white transition">
-                                    <FullscreenIcon active={fullscreen} />
-                                </button>
+                                    {/* تشغيل/إيقاف مصغر */}
+                                    <button onClick={togglePlay} className="w-6 h-6 text-white/80 hover:text-white transition">
+                                        <div className="w-5 h-5 mx-auto">
+                                            {playing ? <PauseIcon /> : <PlayIcon />}
+                                        </div>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </motion.div>

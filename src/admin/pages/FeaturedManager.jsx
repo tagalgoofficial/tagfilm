@@ -5,11 +5,14 @@ import { BsArrowUp, BsArrowDown } from 'react-icons/bs';
 import { getFeatured, addFeatured, removeFeatured, reorderFeatured } from '../../firebase/featuredService';
 import { getMovies } from '../../firebase/moviesService';
 import { getSeries } from '../../firebase/seriesService';
+import { getCategories } from '../../firebase/categoriesService';
 
 const FeaturedManager = () => {
     const [featured, setFeatured] = useState([]);
     const [movies, setMovies] = useState([]);
     const [series, setSeries] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [activeCategoryId, setActiveCategoryId] = useState('home');
     const [loading, setLoading] = useState(true);
     const [addModal, setAddModal] = useState(false);
     const [search, setSearch] = useState('');
@@ -17,14 +20,31 @@ const FeaturedManager = () => {
 
     const load = async () => {
         setLoading(true);
-        const [f, m, s] = await Promise.all([getFeatured(), getMovies(), getSeries()]);
+        const [f, m, s, cats] = await Promise.all([
+            getFeatured(activeCategoryId),
+            getMovies(),
+            getSeries(),
+            getCategories()
+        ]);
         setFeatured(f);
         setMovies(m);
         setSeries(s);
+        setCategories([
+            { id: 'home', label: 'الصفحة الرئيسية' },
+            { id: 'movies', label: 'الأفلام' },
+            { id: 'series', label: 'المسلسلات' },
+            { id: 'ramadan', label: 'رمضان' },
+            { id: 'kids', label: 'أطفال' },
+            { id: 'tv-shows', label: 'البرامج التلفزيونية' },
+            ...cats.filter(c =>
+                !['الأفلام', 'المسلسلات', 'رمضان', 'أخرى'].includes(c.label) &&
+                !['Movies', 'Series', 'Ramadan', 'Others'].includes(c.labelEn)
+            )
+        ]);
         setLoading(false);
     };
 
-    useEffect(() => { load(); }, []);
+    useEffect(() => { load(); }, [activeCategoryId]);
 
     const allContent = [
         ...movies.map(m => ({
@@ -34,7 +54,8 @@ const FeaturedManager = () => {
             titleEn: m.titleEn || m.title,
             poster: m.poster,
             backdrop: m.backdrop,
-            logo: m.logo,
+            logo: m.logo || m.titleLogo || m.logoUrl || m.title_logo,
+            titleLogo: m.titleLogo || m.logo || m.logoUrl || m.title_logo,
             rating: m.rating,
             year: m.year,
             quality: m.quality,
@@ -50,7 +71,8 @@ const FeaturedManager = () => {
             titleEn: s.titleEn || s.title,
             poster: s.poster,
             backdrop: s.backdrop,
-            logo: s.logo,
+            logo: s.logo || s.titleLogo || s.logoUrl || s.title_logo,
+            titleLogo: s.titleLogo || s.logo || s.logoUrl || s.title_logo,
             rating: s.rating,
             year: s.year,
             quality: s.quality,
@@ -68,8 +90,8 @@ const FeaturedManager = () => {
 
     const handleAdd = async (item) => {
         if (isAdded(item.contentId, item.type)) return;
-        if (featured.length >= 7) return alert('الحد الأقصى 7 عناصر في الكافر');
-        await addFeatured({ ...item, order: featured.length + 1 });
+        if (featured.length >= 7) return alert('الحد الأقصى 7 عناصر');
+        await addFeatured({ ...item, order: featured.length + 1 }, activeCategoryId);
         await load();
     };
 
@@ -99,7 +121,7 @@ const FeaturedManager = () => {
                         الكافر المميز (Hero Banner)
                     </h1>
                     <p className="text-gray-400 text-sm font-arabic mt-1">
-                        {featured.length}/7 عنصر · يظهر في الصفحة الرئيسية
+                        {featured.length}/7 عنصر · يظهر في {categories.find(c => c.id === activeCategoryId)?.label}
                     </p>
                 </div>
                 <button
@@ -111,11 +133,27 @@ const FeaturedManager = () => {
                 </button>
             </div>
 
+            {/* Category Selector */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 hide-scrollbar">
+                {categories.map(cat => (
+                    <button
+                        key={cat.id}
+                        onClick={() => setActiveCategoryId(cat.id)}
+                        className={`px-4 py-2 rounded-xl text-xs font-arabic font-bold transition-all whitespace-nowrap border ${activeCategoryId === cat.id
+                            ? 'bg-yellow-400 text-black border-yellow-400 shadow-lg shadow-yellow-400/20'
+                            : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/20'
+                            }`}
+                    >
+                        {cat.label}
+                    </button>
+                ))}
+            </div>
+
             {/* Preview info */}
             <div className="rounded-xl p-4 flex items-center gap-3" style={{ background: 'rgba(255,215,0,0.05)', border: '1px solid rgba(255,215,0,0.15)' }}>
                 <MdStar className="text-yellow-400 text-2xl flex-shrink-0" />
                 <p className="text-gray-300 text-sm font-arabic">
-                    العناصر هنا تظهر كـ <strong className="text-yellow-400">Hero Banner</strong> في الصفحة الرئيسية · يتم التبديل بينها تلقائياً كل 8 ثوان · الحد الأقصى 7 عناصر
+                    العناصر هنا تظهر كـ <strong className="text-yellow-400">Hero Banner</strong> في <strong className="text-white">{categories.find(c => c.id === activeCategoryId)?.label}</strong> · الحد الأقصى 7 عناصر
                 </p>
             </div>
 
@@ -149,9 +187,16 @@ const FeaturedManager = () => {
                                 {idx + 1}
                             </div>
 
-                            {/* Poster */}
-                            <img src={item.poster || 'https://via.placeholder.com/60x90'} alt={item.title}
-                                className="w-12 h-16 object-cover rounded-lg flex-shrink-0" />
+                            {/* Poster & Logo Preview */}
+                            <div className="flex -space-x-4">
+                                <img src={item.poster || 'https://via.placeholder.com/60x90'} alt=""
+                                    className="w-12 h-16 object-cover rounded-lg flex-shrink-0 border border-white/10 z-0" />
+                                {item.logo && (
+                                    <div className="w-12 h-16 rounded-lg bg-black/40 flex items-center justify-center border border-white/10 z-10 backdrop-blur-sm shadow-xl">
+                                        <img src={item.logo} alt="" className="w-10 h-10 object-contain" />
+                                    </div>
+                                )}
+                            </div>
 
                             {/* Info */}
                             <div className="flex-1 min-w-0">

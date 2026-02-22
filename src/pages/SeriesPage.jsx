@@ -131,7 +131,7 @@ const SeriesPage = () => {
                         <VideoPlayer
                             key={currentLink}
                             src={currentLink}
-                            poster={activeEpisode.still || series.backdrop}
+                            poster={activeEpisode.still || currentSeason?.poster || series.backdrop}
                             title={series.titleAr || series.title}
                             subtitle={`الموسم ${currentSeason?.seasonNumber} • الحلقة ${activeEpisode.episodeNumber}`}
                             introEnd={introEnd}
@@ -160,16 +160,16 @@ const SeriesPage = () => {
                 <div className="relative h-[80vh] min-h-[600px] w-full overflow-hidden">
                     <div className="absolute inset-0">
                         <img
-                            src={series.backdrop || series.poster}
+                            src={currentSeason?.poster || series.backdrop || series.poster}
                             alt={series.titleAr}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-cover transition-all duration-700"
                         />
                         <div className="absolute inset-0 bg-gradient-to-r from-[#050514] via-[#050514]/80 to-transparent" />
                         <div className="absolute inset-0 bg-gradient-to-t from-[#050514] via-transparent to-transparent" />
                         <div className="absolute inset-0 bg-gradient-to-b from-[#050514]/40 via-transparent to-transparent" />
                     </div>
 
-                    <div className="relative z-10 h-full container mx-auto px-6 lg:px-16 flex flex-col justify-center">
+                    <div className="relative z-10 h-full container mx-auto px-6 lg:px-16 flex flex-col justify-center pt-60 sm:pt-72">
                         <motion.div
                             initial={{ opacity: 0, x: 50 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -198,7 +198,7 @@ const SeriesPage = () => {
 
                             <div className="flex flex-wrap items-center gap-6 mb-8 text-sm lg:text-base font-bold">
                                 <div className="flex items-center gap-1.5 text-yellow-400">
-                                    <MdStar className="text-xl" />
+                                    <MdStar className="text-lg" />
                                     <span>{series.rating}</span>
                                 </div>
                                 <span className="text-gray-300 font-arabic border-r border-white/20 pr-6">
@@ -227,7 +227,7 @@ const SeriesPage = () => {
                                     }}
                                     className="flex items-center gap-4 px-12 py-5 bg-yellow-400 text-black font-black rounded-2xl text-xl shadow-2xl transition-all font-arabic"
                                 >
-                                    <MdPlayCircle className="text-3xl" />
+                                    <MdPlayCircle className="text-2xl" />
                                     شاهد الحلقة الأولى
                                 </motion.button>
 
@@ -237,15 +237,15 @@ const SeriesPage = () => {
                                     onClick={() => toggleFavorite(series)}
                                     className={`flex items-center gap-4 px-10 py-5 ${isFav ? 'bg-yellow-400/20 border-yellow-400 text-yellow-400' : 'bg-white/10 border-white/10 text-white'} backdrop-blur-xl border rounded-2xl font-bold text-xl transition-all font-arabic`}
                                 >
-                                    {isFav ? <MdFavorite className="text-3xl" /> : <MdFavoriteBorder className="text-3xl" />}
+                                    {isFav ? <MdFavorite className="text-2xl" /> : <MdFavoriteBorder className="text-2xl" />}
                                     {isFav ? 'في المفضلة' : 'أضف للمفضلة'}
                                 </motion.button>
                             </div>
                         </motion.div>
                     </div>
 
-                    <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce opacity-40">
-                        <BiChevronDown className="text-4xl" />
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 animate-bounce opacity-30">
+                        <BiChevronDown className="text-2xl" />
                     </div>
                 </div>
             )}
@@ -287,7 +287,7 @@ const SeriesPage = () => {
                                     >
                                         {/* Episode Thumbnail */}
                                         <div className="relative flex-shrink-0 w-32 lg:w-48 aspect-video rounded-xl overflow-hidden bg-white/5">
-                                            <img src={ep.still || series.backdrop} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                                            <img src={ep.still || currentSeason?.poster || series.backdrop} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                             <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <MdPlayCircle className="text-4xl text-yellow-400 drop-shadow-lg" />
                                             </div>
@@ -306,10 +306,35 @@ const SeriesPage = () => {
                                             </p>
                                         </div>
 
-                                        {/* Play Icon (Mobile / Tablet) */}
-                                        <div className="flex-shrink-0">
-                                            <div className={`p-3 rounded-full transition-colors ${isActive ? 'bg-yellow-400 text-black' : 'bg-white/5 text-gray-500 group-hover:text-yellow-400 group-hover:bg-yellow-400/10'}`}>
-                                                <MdPlayCircle className="text-2xl" />
+                                        {/* Actions: Play + Download */}
+                                        <div className="flex flex-row items-center gap-2 sm:gap-3 flex-shrink-0">
+                                            {/* Download Button */}
+                                            {(() => {
+                                                const dlServer = ep.servers?.find(s => s.downloadLink) || ep.servers?.[0];
+                                                const dlLink = dlServer?.downloadLink || ep.downloadLink || dlServer?.watchLink || ep.watchLink;
+
+                                                if (!dlLink) return null;
+                                                return (
+                                                    <motion.button
+                                                        whileHover={{ scale: 1.05 }}
+                                                        whileTap={{ scale: 0.95 }}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            window.location.href = dlLink;
+                                                        }}
+                                                        title="تحميل مباشر للحلقة"
+                                                        className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500 hover:text-black transition-all duration-300 border border-cyan-500/20 hover:border-transparent font-arabic font-bold text-[10px] sm:text-xs flex-shrink-0"
+                                                    >
+                                                        <MdDownload className="text-base sm:text-lg" />
+                                                        <span className="hidden xs:inline">تحميل سريع</span>
+                                                        <span className="xs:hidden">تحميل</span>
+                                                    </motion.button>
+                                                );
+                                            })()}
+
+                                            {/* Play Icon */}
+                                            <div className={`p-2.5 sm:p-3 rounded-full shadow-lg transition-all duration-300 flex-shrink-0 ${isActive ? 'bg-yellow-400 text-black scale-110' : 'bg-white/5 text-gray-400 group-hover:text-yellow-400 group-hover:bg-yellow-400/10 group-hover:scale-105'}`}>
+                                                <MdPlayCircle className="text-xl sm:text-2xl" />
                                             </div>
                                         </div>
                                     </motion.div>

@@ -46,6 +46,22 @@ const incrementEpisodeUrl = (url) => {
     });
 };
 
+// Helper to set a specific episode number in a URL string (handles leading zeros based on pattern)
+const setEpisodeUrl = (url, epNum) => {
+    if (!url) return '';
+
+    const extensionMatch = url.match(/(\d+)(?=\.[a-z0-9]{2,5}$)/i);
+    if (extensionMatch) {
+        const match = extensionMatch[1];
+        const paddedNext = epNum.toString().padStart(match.length, '0');
+        return url.replace(new RegExp(match + '(?=\\.[a-z0-9]{2,5}$)', 'i'), paddedNext);
+    }
+
+    return url.replace(/(\d+)(?=[^\d]*$)/, (match) => {
+        return epNum.toString().padStart(match.length, '0');
+    });
+};
+
 // نموذج إضافة/تعديل مسلسل
 const SeriesModal = ({ isOpen, onClose, onSave, editData, categories, folders }) => {
     const [form, setForm] = useState(editData || emptySeriesForm);
@@ -281,12 +297,33 @@ const SeasonsPanel = ({ seriesId, seasons, onUpdate }) => {
     const [addingEp, setAddingEp] = useState(null);
     const [editingEp, setEditingEp] = useState(null);
     const [epForm, setEpForm] = useState({ episodeNumber: '', name: '', overview: '', servers: [], still: '', introDuration: '' });
+    const [bulkForm, setBulkForm] = useState({ baseUrl: '', count: '', show: false });
+    const [saving, setSaving] = useState(false);
+    const [bulkConfirm, setBulkConfirm] = useState(null);
+    const [editingSeason, setEditingSeason] = useState(null);
 
     const handleAddSeason = async () => {
         if (!newSeasonForm.seasonNumber) return;
-        await addSeason(seriesId, newSeasonForm);
+
+        if (editingSeason) {
+            await updateSeason(seriesId, editingSeason, newSeasonForm);
+            setEditingSeason(null);
+        } else {
+            await addSeason(seriesId, newSeasonForm);
+        }
+
         setNewSeasonForm({ seasonNumber: '', name: '', poster: '' });
         onUpdate();
+    };
+
+    const handleEditSeason = (season) => {
+        setNewSeasonForm({
+            seasonNumber: season.seasonNumber || '',
+            name: season.name || '',
+            poster: season.poster || ''
+        });
+        setEditingSeason(season.id);
+        // Scroll to form or ensure it's visible
     };
 
     const handleDeleteSeason = async (seasonId) => {
@@ -350,11 +387,53 @@ const SeasonsPanel = ({ seriesId, seasons, onUpdate }) => {
         onUpdate();
     };
 
+    const handleBulkGenerate = async () => {
+        const { baseUrl, count, seasonId } = bulkConfirm;
+        setBulkConfirm(null);
+
+        const numCount = parseInt(count, 10);
+        setSaving(true);
+        try {
+            for (let i = 1; i <= numCount; i++) {
+                const epFormAuto = {
+                    episodeNumber: i.toString(),
+                    name: `الحلقة ${i}`,
+                    servers: [{
+                        ...emptyEpServer,
+                        name: 'سيرفر 1',
+                        watchLink: setEpisodeUrl(baseUrl, i)
+                    }]
+                };
+                await addEpisode(seriesId, seasonId, epFormAuto);
+            }
+        } finally {
+            setSaving(false);
+        }
+
+        setBulkForm({ baseUrl: '', count: '', show: false });
+        onUpdate();
+    };
+
     return (
         <div className="space-y-3">
-            {/* إضافة موسم */}
+            {/* إضافة/تعديل موسم */}
             <div className="p-4 rounded-xl" style={{ background: 'rgba(0,212,255,0.05)', border: '1px solid rgba(0,212,255,0.15)' }}>
-                <p className="text-cyan-400 text-sm font-arabic font-bold mb-3">إضافة موسم جديد</p>
+                <div className="flex items-center justify-between mb-3">
+                    <p className="text-cyan-400 text-sm font-arabic font-bold">
+                        {editingSeason ? `تعديل الموسم ${newSeasonForm.seasonNumber}` : 'إضافة موسم جديد'}
+                    </p>
+                    {editingSeason && (
+                        <button
+                            onClick={() => {
+                                setEditingSeason(null);
+                                setNewSeasonForm({ seasonNumber: '', name: '', poster: '' });
+                            }}
+                            className="text-xs text-gray-400 hover:text-white font-arabic"
+                        >
+                            إلغاء التعديل
+                        </button>
+                    )}
+                </div>
                 <div className="grid grid-cols-3 gap-3 mb-3">
                     <input value={newSeasonForm.seasonNumber} onChange={e => setNewSeasonForm(p => ({ ...p, seasonNumber: e.target.value }))}
                         placeholder="رقم الموسم" className="bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm font-arabic focus:outline-none" dir="rtl" />
@@ -366,7 +445,8 @@ const SeasonsPanel = ({ seriesId, seasons, onUpdate }) => {
                 <button onClick={handleAddSeason}
                     className="flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-arabic font-semibold"
                     style={{ background: 'linear-gradient(135deg, #00d4ff, #0080ff)' }}>
-                    <MdAdd /> إضافة موسم
+                    {editingSeason ? <MdCheck /> : <MdAdd />}
+                    {editingSeason ? 'حفظ التعديلات' : 'إضافة موسم'}
                 </button>
             </div>
 
@@ -380,15 +460,32 @@ const SeasonsPanel = ({ seriesId, seasons, onUpdate }) => {
                     >
                         <div className="flex items-center gap-3">
                             {expanded === season.id ? <MdExpandLess className="text-cyan-400" /> : <MdExpandMore className="text-gray-400" />}
-                            <span className="text-white font-arabic font-semibold text-sm">
-                                الموسم {season.seasonNumber} {season.name && `- ${season.name}`}
-                            </span>
-                            <span className="text-xs text-gray-400">({season.episodes?.length || 0} حلقة)</span>
+                            <div className="w-10 h-14 rounded bg-white/5 overflow-hidden flex-shrink-0">
+                                {season.poster ? (
+                                    <img src={season.poster} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center text-white/20">
+                                        <MdImage />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-white font-arabic font-semibold text-sm">
+                                    الموسم {season.seasonNumber} {season.name && `- ${season.name}`}
+                                </span>
+                                <span className="text-xs text-gray-400">({season.episodes?.length || 0} حلقة)</span>
+                            </div>
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); handleDeleteSeason(season.id); }}
-                            className="p-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/40 transition">
-                            <MdDelete className="text-sm" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button onClick={(e) => { e.stopPropagation(); handleEditSeason(season); }}
+                                className="p-1.5 rounded-lg bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/40 transition">
+                                <MdEdit className="text-sm" />
+                            </button>
+                            <button onClick={(e) => { e.stopPropagation(); handleDeleteSeason(season.id); }}
+                                className="p-1.5 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/40 transition">
+                                <MdDelete className="text-sm" />
+                            </button>
+                        </div>
                     </div>
 
                     <AnimatePresence>
@@ -501,22 +598,75 @@ const SeasonsPanel = ({ seriesId, seasons, onUpdate }) => {
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex items-center gap-2">
-                                            <button onClick={() => setAddingEp(season.id)}
-                                                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-dashed border-white/20 text-gray-400 hover:text-white hover:border-cyan-400/40 transition text-sm font-arabic">
-                                                <MdAdd /> إضافة حلقة
-                                            </button>
+                                        <>
+                                            <div className="flex items-center gap-2">
+                                                <button onClick={() => setAddingEp(season.id)}
+                                                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-dashed border-white/20 text-gray-400 hover:text-white hover:border-cyan-400/40 transition text-sm font-arabic">
+                                                    <MdAdd /> إضافة حلقة
+                                                </button>
 
-                                            {season.episodes?.length > 0 && (
                                                 <button
-                                                    onClick={() => handleAutoGenerateEpisode(season)}
+                                                    onClick={() => setBulkForm(p => ({ ...p, show: !p.show }))}
                                                     className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-lg bg-yellow-400 text-black font-bold text-xs font-arabic shadow-lg shadow-yellow-400/20 hover:scale-[1.02] active:scale-95 transition-all"
                                                 >
                                                     <MdPlayCircle className="text-lg" />
-                                                    إنشاء حلقة تلقائية
+                                                    إنشاء حلقات تلقائياً
                                                 </button>
+
+                                                {season.episodes?.length > 0 && (
+                                                    <button
+                                                        onClick={() => handleAutoGenerateEpisode(season)}
+                                                        className="flex-shrink-0 p-2.5 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 transition"
+                                                        title="توليد الحلقة التالية"
+                                                    >
+                                                        <MdAdd className="text-lg" />
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            {bulkForm.show && (
+                                                <div className="p-3 rounded-xl space-y-3 mt-2" style={{ background: 'rgba(255,215,0,0.05)', border: '1px solid rgba(255,215,0,0.2)' }}>
+                                                    <p className="text-yellow-400 text-xs font-bold font-arabic">توليد حلقات مجمع</p>
+                                                    <div className="grid grid-cols-4 gap-2">
+                                                        <input
+                                                            value={bulkForm.baseUrl}
+                                                            onChange={e => setBulkForm(p => ({ ...p, baseUrl: e.target.value }))}
+                                                            placeholder="الرابط الأساسي (مثال: .../01.mp4)"
+                                                            className="col-span-3 bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-xs focus:outline-none"
+                                                            dir="ltr"
+                                                        />
+                                                        <input
+                                                            type="number"
+                                                            value={bulkForm.count}
+                                                            onChange={e => setBulkForm(p => ({ ...p, count: e.target.value }))}
+                                                            placeholder="العدد"
+                                                            className="bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-xs text-center focus:outline-none"
+                                                        />
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            onClick={() => {
+                                                                if (!bulkForm.baseUrl || !bulkForm.count) return alert('الرجاء إدخال الرابط وعدد الحلقات');
+                                                                const numCount = parseInt(bulkForm.count, 10);
+                                                                if (isNaN(numCount) || numCount <= 0) return alert('عدد الحلقات غير صالح');
+                                                                setBulkConfirm({ ...bulkForm, seasonId: season.id });
+                                                            }}
+                                                            disabled={saving}
+                                                            className="flex-1 py-2 rounded-lg bg-yellow-400 text-black font-bold text-xs font-arabic disabled:opacity-50"
+                                                        >
+                                                            {saving ? 'جارٍ الإنشاء...' : 'بدء الإنشاء'}
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setBulkForm(p => ({ ...p, show: false }))}
+                                                            disabled={saving}
+                                                            className="px-4 py-2 rounded-lg bg-white/10 text-gray-400 text-xs font-arabic disabled:opacity-50"
+                                                        >
+                                                            إلغاء
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             )}
-                                        </div>
+                                        </>
                                     )}
                                 </div>
                             </motion.div>
@@ -524,6 +674,39 @@ const SeasonsPanel = ({ seriesId, seasons, onUpdate }) => {
                     </AnimatePresence>
                 </div>
             ))}
+
+            {/* Bulk Confirm Modal */}
+            <AnimatePresence>
+                {bulkConfirm && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+                        style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}>
+                        <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+                            className="rounded-3xl p-8 max-w-sm w-full text-center relative overflow-hidden"
+                            style={{ background: 'linear-gradient(135deg, #1a1a35, #12122a)', border: '1px solid rgba(255, 215, 0, 0.3)', boxShadow: '0 25px 50px -12px rgba(255, 215, 0, 0.15)' }}>
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-yellow-400 to-transparent" />
+                            <div className="w-20 h-20 bg-yellow-400/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-yellow-400/20">
+                                <MdPlayCircle className="text-5xl text-yellow-400" />
+                            </div>
+                            <h3 className="text-white font-black font-arabic text-xl mb-3">توليد الحلقات تلقائياً</h3>
+                            <p className="text-gray-400 text-sm font-arabic mb-8 leading-relaxed">
+                                سيتم إنشاء <span className="text-yellow-400 font-bold">{bulkConfirm.count}</span> حلقة لهذا الموسم باستخدام الرابط المقدم. هل تريد الاستمرار؟
+                            </p>
+                            <div className="flex gap-4">
+                                <button onClick={() => setBulkConfirm(null)}
+                                    className="flex-1 py-3.5 rounded-2xl bg-white/5 text-gray-400 font-arabic font-bold hover:bg-white/10 transition-all border border-white/5">
+                                    إلغاء
+                                </button>
+                                <button onClick={handleBulkGenerate}
+                                    className="flex-1 py-3.5 rounded-2xl text-black font-black font-arabic shadow-lg shadow-yellow-400/20 hover:scale-[1.02] active:scale-95 transition-all"
+                                    style={{ background: 'linear-gradient(135deg, #ffd700, #ffae00)' }}>
+                                    تأكيد البدء
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

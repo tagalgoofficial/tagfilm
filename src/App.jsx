@@ -62,7 +62,7 @@ function HomePage() {
       </div>
 
       {/* Sections Carousels */}
-      <div className="space-y-12 py-10" style={{ background: 'var(--bg-site)' }}>
+      <div className="space-y-24 py-20 pb-40">
         {loading ? (
           [1, 2, 3, 4].map(i => <Carousel key={i} title="" movies={[]} loading={true} />)
         ) : sections.length > 0 ? (

@@ -5,7 +5,7 @@ import {
     MdMovieFilter, MdCheck, MdImage, MdLink, MdPlayCircle, MdDns
 } from 'react-icons/md';
 import { BiCameraMovie } from 'react-icons/bi';
-import { getMovies, addMovie, updateMovie, deleteMovie } from '../../firebase/moviesService';
+import { getMovies, addMovie, updateMovie, deleteMovie, addPart, updatePart, deletePart } from '../../firebase/moviesService';
 import { getCategories } from '../../firebase/categoriesService';
 import TMDBSearchModal from '../components/TMDBSearchModal';
 
@@ -17,7 +17,7 @@ const emptyServer = { name: '', quality: 'FHD', type: 'embed', watchLink: '', do
 const emptyMovieForm = {
     title: '', titleAr: '', titleEn: '', overview: '', poster: '', backdrop: '', logo: '',
     year: '', rating: '', duration: '', introDuration: '', quality: 'WEB-DL', category: '',
-    subcategory: '', genres: [], cast: [], servers: [],
+    subcategory: '', genres: [], cast: [], servers: [], parts: [],
     featured: false, tmdbId: null, type: 'movie'
 };
 
@@ -65,6 +65,23 @@ const ServerRow = ({ server, index, onChange, onDelete }) => (
             <input value={server.downloadLink} onChange={e => onChange('downloadLink', e.target.value)}
                 placeholder="https://..." dir="ltr"
                 className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 px-3 text-white text-sm focus:outline-none focus:border-blue-400/50 transition" />
+        </div>
+    </div>
+);
+
+// مكوّن حقل إدخال بسيط
+const Field = ({ label, value, onChange, placeholder, icon: Icon }) => (
+    <div>
+        <label className="text-gray-300 text-sm font-arabic mb-1 block">{label}</label>
+        <div className="relative">
+            {Icon && <Icon className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />}
+            <input
+                value={value}
+                onChange={e => onChange(e.target.value)}
+                placeholder={placeholder}
+                className={`w-full bg-white/5 border border-white/15 rounded-xl py-3 text-white text-sm focus:outline-none focus:border-yellow-400/60 transition font-arabic ${Icon ? 'pr-10 pl-4' : 'px-4'}`}
+                dir="rtl"
+            />
         </div>
     </div>
 );
@@ -390,21 +407,118 @@ const MovieModal = ({ isOpen, onClose, onSave, editData, categories }) => {
     );
 };
 
-const Field = ({ label, value, onChange, placeholder, icon: Icon }) => (
-    <div>
-        <label className="text-gray-300 text-sm font-arabic mb-1 block">{label}</label>
-        <div className="relative">
-            {Icon && <Icon className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />}
-            <input
-                value={value}
-                onChange={e => onChange(e.target.value)}
-                placeholder={placeholder}
-                className={`w-full bg-white/5 border border-white/15 rounded-xl py-3 text-white text-sm focus:outline-none focus:border-yellow-400/60 transition font-arabic ${Icon ? 'pr-10 pl-4' : 'px-4'}`}
-                dir="rtl"
-            />
+// مكوّن إدارة أجزاء الفيلم
+const PartsPanel = ({ movieId, parts, onUpdate }) => {
+    const [newPartForm, setNewPartForm] = useState({ partNumber: '', name: '', poster: '', servers: [] });
+    const [editingPart, setEditingPart] = useState(null);
+    const [addingPart, setAddingPart] = useState(false);
+
+    const handleAddPart = async () => {
+        if (!newPartForm.partNumber) return;
+        if (editingPart) {
+            await updatePart(movieId, editingPart, newPartForm);
+            setEditingPart(null);
+        } else {
+            await addPart(movieId, newPartForm);
+        }
+        setNewPartForm({ partNumber: '', name: '', poster: '', servers: [] });
+        setAddingPart(false);
+        onUpdate();
+    };
+
+    const handleEditPart = (part) => {
+        setNewPartForm({ ...part });
+        setEditingPart(part.id);
+        setAddingPart(true);
+    };
+
+    const handleDeletePart = async (partId) => {
+        if (!confirm('حذف هذا الجزء؟')) return;
+        await deletePart(movieId, partId);
+        onUpdate();
+    };
+
+    return (
+        <div className="space-y-3 p-4 bg-yellow-400/5 rounded-2xl border border-yellow-400/10">
+            <div className="flex items-center justify-between mb-2">
+                <div>
+                    <p className="text-yellow-400 text-sm font-arabic font-bold">أجزاء الفيلم / السلسلة</p>
+                    <p className="text-gray-500 text-[10px] font-arabic">أضف الأجزاء الأخرى (مثل: الجزء الثاني، الثالث...)</p>
+                </div>
+                <button onClick={() => setAddingPart(!addingPart)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-yellow-400 text-black text-xs font-bold font-arabic shadow-lg shadow-yellow-400/20">
+                    {addingPart ? <MdClose /> : <MdAdd />}
+                    {addingPart ? 'إلغاء' : 'إضافة جزء'}
+                </button>
+            </div>
+
+            {addingPart && (
+                <div className="p-4 rounded-xl space-y-3 mb-4 bg-[#1a1a35] border border-white/10 shadow-2xl">
+                    <div className="grid grid-cols-2 gap-3">
+                        <input value={newPartForm.partNumber} onChange={e => setNewPartForm(p => ({ ...p, partNumber: e.target.value }))}
+                            placeholder="رقم الجزء" className="bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm font-arabic focus:outline-none focus:border-yellow-400/40" dir="rtl" />
+                        <input value={newPartForm.name} onChange={e => setNewPartForm(p => ({ ...p, name: e.target.value }))}
+                            placeholder="اسم الجزء (مثال: الجزء الثاني)" className="bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm font-arabic focus:outline-none focus:border-yellow-400/40" dir="rtl" />
+                    </div>
+                    <input value={newPartForm.poster} onChange={e => setNewPartForm(p => ({ ...p, poster: e.target.value }))}
+                        placeholder="رابط بوستر الجزء (اختياري)" className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-sm focus:outline-none focus:border-yellow-400/40" dir="rtl" />
+
+                    {/* Servers for Part */}
+                    <div className="border-t border-white/10 pt-3">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-gray-400 text-xs font-arabic">سيرفرات مشاهدة هذا الجزء ({newPartForm.servers?.length || 0})</span>
+                            <button onClick={() => setNewPartForm(p => ({ ...p, servers: [...(p.servers || []), { name: `سيرفر ${(p.servers?.length || 0) + 1}`, quality: 'FHD', type: 'embed', watchLink: '', downloadLink: '' }] }))}
+                                className="text-yellow-400 text-xs font-bold flex items-center gap-1 hover:underline">
+                                <MdAdd /> إضافة سيرفر
+                            </button>
+                        </div>
+                        {newPartForm.servers?.map((srv, si) => (
+                            <div key={si} className="p-3 mb-2 rounded-xl space-y-2 bg-black/20 border border-white/5">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-yellow-400/60 text-[10px] uppercase font-bold">سيرفر {si + 1}</span>
+                                    <button onClick={() => setNewPartForm(p => ({ ...p, servers: p.servers.filter((_, idx) => idx !== si) }))} className="text-red-400 hover:scale-110 transition"><MdDelete className="text-xs" /></button>
+                                </div>
+                                <input value={srv.watchLink} onChange={e => { const u = [...newPartForm.servers]; u[si].watchLink = e.target.value; setNewPartForm(p => ({ ...p, servers: u })); }}
+                                    placeholder="رابط المشاهدة Direct/Embed" className="w-full bg-black/40 border border-white/10 rounded py-2 px-3 text-white text-[11px] focus:border-yellow-400/30 outline-none" dir="ltr" />
+                            </div>
+                        ))}
+                    </div>
+
+                    <button onClick={handleAddPart} className="w-full py-2.5 rounded-xl bg-yellow-400 text-black font-black text-sm font-arabic shadow-lg shadow-yellow-400/20 active:scale-95 transition-all">
+                        {editingPart ? 'تعديل الجزء' : 'حفظ الجزء الجديد'}
+                    </button>
+                </div>
+            )}
+
+            <div className="space-y-2">
+                {parts?.map(part => (
+                    <div key={part.id} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all">
+                        <div className="flex items-center gap-3">
+                            <div className="w-9 h-12 rounded-lg bg-white/5 overflow-hidden flex-shrink-0 border border-white/10 shadow-lg">
+                                {part.poster ? <img src={part.poster} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white/10"><MdImage /></div>}
+                            </div>
+                            <div>
+                                <p className="text-white text-sm font-arabic font-bold">جزء {part.partNumber}{part.name && ` - ${part.name}`}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                    <span className="px-1.5 py-0.5 rounded bg-yellow-400/10 text-yellow-400 text-[9px] font-bold">{part.servers?.length || 0} سيرفرات</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button onClick={() => handleEditPart(part)} className="p-1.5 rounded-lg bg-yellow-400/10 text-yellow-400 hover:bg-yellow-400/20 transition"><MdEdit className="text-sm" /></button>
+                            <button onClick={() => handleDeletePart(part.id)} className="p-1.5 rounded-lg bg-red-400/10 text-red-400 hover:bg-red-400/20 transition"><MdDelete className="text-sm" /></button>
+                        </div>
+                    </div>
+                ))}
+                {(!parts || parts.length === 0) && !addingPart && (
+                    <div className="text-center py-6 text-gray-500 font-arabic text-sm border-2 border-dashed border-white/5 rounded-xl">
+                        لا توجد أجزاء إضافية لهذا الفيلم حالياً
+                    </div>
+                )}
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 // الصفحة الرئيسية لإدارة الأفلام
 const MoviesManager = () => {
@@ -414,6 +528,7 @@ const MoviesManager = () => {
     const [search, setSearch] = useState('');
     const [modalOpen, setModalOpen] = useState(false);
     const [editMovie, setEditMovie] = useState(null);
+    const [expandedMovie, setExpandedMovie] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
 
     const load = async () => {
@@ -478,10 +593,8 @@ const MoviesManager = () => {
 
             {/* Grid */}
             {loading ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {[...Array(10)].map((_, i) => (
-                        <div key={i} className="rounded-xl bg-white/5 animate-pulse aspect-[2/3]" />
-                    ))}
+                <div className="space-y-4">
+                    {[...Array(5)].map((_, i) => <div key={i} className="h-20 rounded-xl bg-white/5 animate-pulse" />)}
                 </div>
             ) : filtered.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -495,56 +608,84 @@ const MoviesManager = () => {
                     </button>
                 </div>
             ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                <div className="space-y-3">
                     {filtered.map((movie, i) => (
                         <motion.div
                             key={movie.id}
-                            initial={{ opacity: 0, y: 20 }}
+                            initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.04 }}
-                            className="group relative rounded-xl overflow-hidden"
+                            className="rounded-2xl overflow-hidden"
                             style={{ border: '1px solid rgba(255,255,255,0.08)' }}
                         >
-                            <div className="aspect-[2/3] relative overflow-hidden">
-                                <img
-                                    src={movie.poster || 'https://via.placeholder.com/200x300?text=No+Poster'}
-                                    alt={movie.title}
-                                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={() => { setEditMovie(movie); setModalOpen(true); }}
-                                            className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-arabic font-semibold text-black"
-                                            style={{ background: 'linear-gradient(135deg, #ffd700, #ff8c00)' }}
-                                        >
-                                            <MdEdit /> تعديل
-                                        </button>
-                                        <button
-                                            onClick={() => setDeleteConfirm(movie)}
-                                            className="flex items-center justify-center w-9 py-2 rounded-lg bg-red-500/80 text-white"
-                                        >
-                                            <MdDelete />
-                                        </button>
+                            {/* Movie Row */}
+                            <div className="flex items-center gap-4 p-4 hover:bg-white/[0.02] transition-colors" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                                <div className="w-14 h-20 rounded-xl overflow-hidden flex-shrink-0 border border-white/5 shadow-2xl">
+                                    <img
+                                        src={movie.poster || 'https://via.placeholder.com/60x80?text=N/A'}
+                                        alt=""
+                                        className="w-full h-full object-cover"
+                                    />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <p className="text-white font-black font-arabic text-base truncate">{movie.titleAr || movie.title}</p>
+                                        {movie.featured && <span className="p-1 rounded-full bg-yellow-400/20 text-yellow-400"><MdStar className="text-xs" /></span>}
                                     </div>
+                                    <p className="text-gray-400 text-sm font-arabic truncate opacity-60">{movie.titleEn}</p>
+                                    <div className="flex items-center gap-3 mt-1.5">
+                                        <span className="text-gray-500 text-xs font-bold">{movie.year}</span>
+                                        <div className="flex items-center gap-1 bg-yellow-400/10 px-1.5 py-0.5 rounded">
+                                            <MdStar className="text-yellow-400 text-[10px]" />
+                                            <span className="text-yellow-400 text-xs font-bold">{movie.rating}</span>
+                                        </div>
+                                        <div className="h-1 w-1 rounded-full bg-gray-600" />
+                                        <span className="text-gray-500 text-xs">{movie.category ? categories.find(c => c.id === movie.category)?.label : 'بدون تصنيف'}</span>
+                                        {movie.parts?.length > 0 && (
+                                            <span className="px-2 py-0.5 rounded-full bg-yellow-400 text-black text-[10px] font-black uppercase tracking-wider">
+                                                {movie.parts.length + 1} أجزاء
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                    <button
+                                        onClick={() => setExpandedMovie(expandedMovie === movie.id ? null : movie.id)}
+                                        className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-arabic font-bold transition-all border ${expandedMovie === movie.id ? 'bg-yellow-400 text-black border-transparent' : 'text-yellow-400 border-yellow-400/30 hover:bg-yellow-400/10'}`}
+                                    >
+                                        {expandedMovie === movie.id ? <MdPlayCircle /> : <MdAdd />}
+                                        {expandedMovie === movie.id ? 'إخفاء الأجزاء' : 'إدارة الأجزاء'}
+                                    </button>
+                                    <button
+                                        onClick={() => { setEditMovie(movie); setModalOpen(true); }}
+                                        className="p-2.5 rounded-xl text-white hover:bg-white/10 transition border border-white/10"
+                                    >
+                                        <MdEdit className="text-lg" />
+                                    </button>
+                                    <button
+                                        onClick={() => setDeleteConfirm(movie)}
+                                        className="p-2.5 rounded-xl text-red-500 hover:bg-red-500/10 transition border border-red-500/20"
+                                    >
+                                        <MdDelete className="text-lg" />
+                                    </button>
                                 </div>
                             </div>
-                            <div className="p-2" style={{ background: 'rgba(18,18,42,0.95)' }}>
-                                <p className="text-white text-xs font-semibold font-arabic truncate">{movie.titleAr || movie.title}</p>
-                                <div className="flex items-center justify-between mt-1">
-                                    <span className="text-gray-400 text-xs">{movie.year}</span>
-                                    <div className="flex items-center gap-1">
-                                        <MdStar className="text-yellow-400 text-xs" />
-                                        <span className="text-yellow-400 text-xs">{movie.rating}</span>
-                                    </div>
-                                </div>
-                                {movie.quality && (
-                                    <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] font-bold text-black"
-                                        style={{ background: 'linear-gradient(135deg, #ffd700, #ff8c00)' }}>
-                                        {movie.quality}
-                                    </span>
+
+                            {/* Parts Panel */}
+                            <AnimatePresence>
+                                {expandedMovie === movie.id && (
+                                    <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden bg-black/40"
+                                    >
+                                        <div className="p-5 border-t border-white/5">
+                                            <PartsPanel movieId={movie.id} parts={movie.parts} onUpdate={load} />
+                                        </div>
+                                    </motion.div>
                                 )}
-                            </div>
+                            </AnimatePresence>
                         </motion.div>
                     ))}
                 </div>

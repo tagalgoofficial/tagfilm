@@ -125,7 +125,7 @@ const HeroBanner = ({ items = [] }) => {
                             </motion.div>
 
                             {/* Logo / Title */}
-                            {item.logo ? (
+                            {(item.logo || item.titleLogo || item.logoUrl || item.title_logo) ? (
                                 <motion.div
                                     initial={{ opacity: 0, y: 30 }}
                                     animate={{ opacity: 1, y: 0 }}
@@ -133,11 +133,20 @@ const HeroBanner = ({ items = [] }) => {
                                     className="mb-8"
                                 >
                                     <img
-                                        src={item.logo}
+                                        src={item.logo || item.titleLogo || item.logoUrl || item.title_logo}
                                         alt={item.title}
                                         className="max-h-40 sm:max-h-64 object-contain"
-                                        style={{ filter: 'drop-shadow(0 0 35px rgba(0,0,0,0.9))' }}
+                                        style={{ filter: 'drop-shadow(0 0 35px rgba(239,68,68,0.3)) drop-shadow(0 0 10px rgba(0,0,0,0.8))' }}
+                                        onError={(e) => {
+                                            e.target.style.display = 'none';
+                                            if (e.target.nextSibling) e.target.nextSibling.style.display = 'block';
+                                        }}
                                     />
+                                    <div style={{ display: 'none' }}>
+                                        <h1 className="text-4xl sm:text-6xl lg:text-8xl font-black text-white mb-2 font-arabic leading-tight drop-shadow-2xl">
+                                            {item.title}
+                                        </h1>
+                                    </div>
                                 </motion.div>
                             ) : (
                                 <motion.h2
@@ -233,8 +242,8 @@ const HeroBanner = ({ items = [] }) => {
 
             {/* Cinematic Logo Selection Bar */}
             {items.length > 1 && (
-                <div className="absolute bottom-4 sm:bottom-6 left-0 right-0 z-20 flex justify-center px-4">
-                    <div className="flex items-center gap-6 sm:gap-16 px-6 sm:px-14 py-4 sm:py-8 bg-black/50 backdrop-blur-3xl rounded-full border border-white/10 shadow-[0_25px_60px_rgba(0,0,0,0.7)] overflow-x-auto hide-scrollbar max-w-full sm:max-w-max mx-auto">
+                <div className="absolute bottom-4 sm:bottom-6 left-0 right-0 z-20 flex justify-end px-6 lg:px-16">
+                    <div className="flex items-center gap-4 sm:gap-8 px-4 sm:px-8 py-2 sm:py-4 bg-black/50 backdrop-blur-3xl rounded-full border border-white/10 shadow-[0_25px_60px_rgba(0,0,0,0.7)] overflow-x-auto hide-scrollbar max-w-full sm:max-w-max">
                         {items.map((it, i) => (
                             <button
                                 key={i}
@@ -242,21 +251,30 @@ const HeroBanner = ({ items = [] }) => {
                                 className="group relative flex flex-col items-center flex-shrink-0 transition-all duration-500"
                                 style={{
                                     opacity: i === current ? 1 : 0.45,
-                                    transform: i === current ? 'scale(1.1)' : 'scale(0.9)'
+                                    transform: i === current ? 'scale(1.05)' : 'scale(0.9)'
                                 }}
                             >
-                                <div className="h-10 sm:h-24 flex items-center justify-center transition-all duration-500 group-hover:scale-110">
-                                    {(it.logo || it.titleLogo) ? (
-                                        <img
-                                            src={it.logo || it.titleLogo}
-                                            alt={it.title}
-                                            className="h-full w-auto object-contain max-w-[100px] sm:max-w-[240px]"
-                                            style={{
-                                                filter: i === current
-                                                    ? 'drop-shadow(0 0 15px rgba(255,12,12,0.6))'
-                                                    : 'grayscale(0.8) brightness(0.7)'
-                                            }}
-                                        />
+                                <div className="h-8 sm:h-16 flex items-center justify-center transition-all duration-500 group-hover:scale-110">
+                                    {(it.logo || it.titleLogo || it.logoUrl || it.title_logo) ? (
+                                        <>
+                                            <img
+                                                src={it.logo || it.titleLogo || it.logoUrl || it.title_logo}
+                                                alt={it.title}
+                                                className="h-full w-auto object-contain max-w-[80px] sm:max-w-[160px]"
+                                                style={{
+                                                    filter: i === current
+                                                        ? 'drop-shadow(0 0 15px rgba(255,12,12,0.6))'
+                                                        : 'grayscale(0.8) brightness(0.7)'
+                                                }}
+                                                onError={(e) => {
+                                                    e.target.style.display = 'none';
+                                                    if (e.target.nextSibling) e.target.nextSibling.style.display = 'block';
+                                                }}
+                                            />
+                                            <span style={{ display: 'none' }} className="text-white font-black font-arabic text-xs sm:text-base">
+                                                {it.title}
+                                            </span>
+                                        </>
                                     ) : (
                                         <span className="text-white font-black font-arabic text-sm sm:text-2xl whitespace-nowrap px-5 py-2.5 bg-white/5 rounded-2xl border border-white/10">
                                             {it.title}

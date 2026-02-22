@@ -1,7 +1,7 @@
 import { db } from './config';
 import {
     collection, doc, getDocs, setDoc, deleteDoc,
-    query, orderBy, serverTimestamp
+    query, orderBy, where, serverTimestamp
 } from 'firebase/firestore';
 
 const FEATURED_COL = 'featured';
@@ -10,18 +10,24 @@ const FEATURED_COL = 'featured';
 const cleanData = (obj) =>
     Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined && v !== null));
 
-// جلب المحتوى المميز (الكافر)
-export const getFeatured = async () => {
-    const q = query(collection(db, FEATURED_COL), orderBy('order', 'asc'));
+// جلب المحتوى المميز (الكافر) حسب التصنيف
+export const getFeatured = async (categoryId = 'home') => {
+    const q = query(
+        collection(db, FEATURED_COL),
+        where('categoryId', '==', categoryId)
+    );
     const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+    return snapshot.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.order || 0) - (b.order || 0));
 };
 
 // إضافة/تحديث عنصر مميز
-export const addFeatured = async (item) => {
-    const id = `${item.type}_${item.contentId}`;
+export const addFeatured = async (item, categoryId = 'home') => {
+    const id = `${item.type}_${item.contentId}_${categoryId}`;
     await setDoc(doc(db, FEATURED_COL, id), {
         ...cleanData(item),
+        categoryId,
         updatedAt: serverTimestamp(),
     });
     return id;
