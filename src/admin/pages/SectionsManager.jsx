@@ -65,7 +65,8 @@ const SectionsManager = () => {
         const section = sections.find(s => s.id === sectionId);
         const alreadyAdded = section?.items?.find(i => i.id === item.id);
         if (alreadyAdded) return;
-        await addItemToSection(sectionId, { id: item.id, title: item.titleAr || item.title, poster: item.poster, type: item.type });
+        // Save full item data to ensure all metadata (overview, rating, etc.) is available in the section
+        await addItemToSection(sectionId, { ...item, type: item.type });
         await load();
     };
 

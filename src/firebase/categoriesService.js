@@ -63,20 +63,20 @@ export const deleteSubcategory = async (categoryId, subId) => {
 
 // تهيئة التصنيفات الافتراضية إذا كانت فارغة
 export const initDefaultCategories = async () => {
-    const snapshot = await getDocs(collection(db, CATEGORIES_COL));
-    if (!snapshot.empty) return;
+    const q = query(collection(db, CATEGORIES_COL));
+    const snapshot = await getDocs(q);
+    const existingLabels = snapshot.docs.map(d => d.data().label);
 
     const defaults = [
+        { label: 'أفلام عربية', labelEn: 'Arabic Movies', icon: 'movies', order: 1, subcategories: [] },
+        { label: 'أفلام أجنبية', labelEn: 'Foreign Movies', icon: 'movies', order: 2, subcategories: [] },
+        { label: 'أفلام تركية', labelEn: 'Turkish Movies', icon: 'movies', order: 3, subcategories: [] },
+        { label: 'أفلام هندية', labelEn: 'Indian Movies', icon: 'movies', order: 4, subcategories: [] },
+        { label: 'أفلام أنميشن', labelEn: 'Animation Movies', icon: 'movies', order: 5, subcategories: [] },
+        { label: 'أفلام قصيرة', labelEn: 'Short Movies', icon: 'movies', order: 6, subcategories: [] },
+        { label: 'أفلام وثائقية', labelEn: 'Documentaries', icon: 'movies', order: 7, subcategories: [] },
         {
-            label: 'الأفلام', labelEn: 'Movies', icon: 'movies', order: 1,
-            subcategories: [
-                { id: 'sub_1', name: 'أكشن' }, { id: 'sub_2', name: 'كوميديا' },
-                { id: 'sub_3', name: 'دراما' }, { id: 'sub_4', name: 'رعب' },
-                { id: 'sub_5', name: 'خيال علمي' }, { id: 'sub_6', name: 'رومانسي' },
-            ]
-        },
-        {
-            label: 'المسلسلات', labelEn: 'Series', icon: 'series', order: 2,
+            label: 'المسلسلات', labelEn: 'Series', icon: 'series', order: 8,
             subcategories: [
                 { id: 'sub_7', name: 'مسلسلات عربية' }, { id: 'sub_8', name: 'مسلسلات أجنبية' },
                 { id: 'sub_9', name: 'مسلسلات تركية' }, { id: 'sub_10', name: 'أنمي' },
@@ -84,14 +84,14 @@ export const initDefaultCategories = async () => {
             ]
         },
         {
-            label: 'رمضان', labelEn: 'Ramadan', icon: 'ramadan', order: 3,
+            label: 'رمضان', labelEn: 'Ramadan', icon: 'ramadan', order: 9,
             subcategories: [
                 { id: 'sub_12', name: 'مسلسلات رمضان 2025' }, { id: 'sub_13', name: 'برامج رمضانية' },
                 { id: 'sub_14', name: 'أفلام رمضانية' }, { id: 'sub_15', name: 'فوازير' },
             ]
         },
         {
-            label: 'أخرى', labelEn: 'Others', icon: 'other', order: 4,
+            label: 'أخرى', labelEn: 'Others', icon: 'other', order: 10,
             subcategories: [
                 { id: 'sub_16', name: 'برامج' }, { id: 'sub_17', name: 'رياضة' },
                 { id: 'sub_18', name: 'أطفال' }, { id: 'sub_19', name: 'موسيقى' },
@@ -100,6 +100,8 @@ export const initDefaultCategories = async () => {
     ];
 
     for (const cat of defaults) {
-        await addDoc(collection(db, CATEGORIES_COL), { ...cat, createdAt: serverTimestamp() });
+        if (!existingLabels.includes(cat.label)) {
+            await addDoc(collection(db, CATEGORIES_COL), { ...cat, createdAt: serverTimestamp() });
+        }
     }
 };

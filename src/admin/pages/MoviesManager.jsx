@@ -6,8 +6,11 @@ import {
 } from 'react-icons/md';
 import { BiCameraMovie } from 'react-icons/bi';
 import { getMovies, addMovie, updateMovie, deleteMovie, addPart, updatePart, deletePart } from '../../firebase/moviesService';
-import { getCategories } from '../../firebase/categoriesService';
+import { getCategories, initDefaultCategories } from '../../firebase/categoriesService';
+import { getMovieFolders, addMovieFolder, updateMovieFolder, deleteMovieFolder } from '../../firebase/movieFoldersService';
 import TMDBSearchModal from '../components/TMDBSearchModal';
+import BulkUrlReplacerModal from '../components/BulkUrlReplacerModal';
+import { MdFolder, MdFolderOpen, MdSettings } from 'react-icons/md';
 
 const QUALITIES = ['WEB-DL', 'BluRay', 'HDRip', '4K', 'CAM', 'HD', 'FHD', 'SCR', '720p', '1080p'];
 const SERVER_TYPES = ['embed', 'direct', 'iframe', 'hls', 'mp4', 'other'];
@@ -17,7 +20,8 @@ const emptyServer = { name: '', quality: 'FHD', type: 'embed', watchLink: '', do
 const emptyMovieForm = {
     title: '', titleAr: '', titleEn: '', overview: '', poster: '', backdrop: '', logo: '',
     year: '', rating: '', duration: '', introDuration: '', quality: 'WEB-DL', category: '',
-    subcategory: '', genres: [], cast: [], servers: [], parts: [],
+    subcategories: [], genres: [], cast: [], servers: [], parts: [],
+    folderId: '',
     featured: false, tmdbId: null, type: 'movie'
 };
 
@@ -87,7 +91,7 @@ const Field = ({ label, value, onChange, placeholder, icon: Icon }) => (
 );
 
 // مودال الإضافة / التعديل
-const MovieModal = ({ isOpen, onClose, onSave, editData, categories }) => {
+const MovieModal = ({ isOpen, onClose, onSave, editData, categories, folders }) => {
     const [form, setForm] = useState(editData || emptyMovieForm);
     const [tmdbOpen, setTmdbOpen] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -114,6 +118,7 @@ const MovieModal = ({ isOpen, onClose, onSave, editData, categories }) => {
             duration: data.duration,
             genres: data.genres,
             cast: data.cast,
+            logo: data.logo,
             tmdbId: data.tmdbId,
         }));
     };
@@ -243,21 +248,50 @@ const MovieModal = ({ isOpen, onClose, onSave, editData, categories }) => {
                                     </div>
                                     <div>
                                         <label className="text-gray-300 text-sm font-arabic mb-1 block">التصنيف الرئيسي</label>
-                                        <select value={form.category} onChange={e => { set('category', e.target.value); set('subcategory', ''); }}
+                                        <select value={form.category} onChange={e => { set('category', e.target.value); set('subcategories', []); }}
                                             className="w-full bg-white/5 border border-white/15 rounded-xl py-3 px-4 text-white text-sm focus:outline-none focus:border-yellow-400/60 transition">
                                             <option value="" className="bg-[#12122a]">اختر تصنيفاً</option>
                                             {categories.map(c => <option key={c.id} value={c.id} className="bg-[#12122a]">{c.label}</option>)}
                                         </select>
                                     </div>
+                                    <div>
+                                        <label className="text-gray-300 text-sm font-arabic mb-1 block">المجلد (Folder)</label>
+                                        <select value={form.folderId} onChange={e => set('folderId', e.target.value)}
+                                            className="w-full bg-white/5 border border-white/15 rounded-xl py-3 px-4 text-white text-sm focus:outline-none focus:border-yellow-400/60 transition">
+                                            <option value="" className="bg-[#12122a]">بدون مجلد</option>
+                                            {folders?.map(f => <option key={f.id} value={f.id} className="bg-[#12122a]">{f.label}</option>)}
+                                        </select>
+                                    </div>
                                 </div>
                                 {selectedCategory?.subcategories?.length > 0 && (
                                     <div>
-                                        <label className="text-gray-300 text-sm font-arabic mb-1 block">التصنيف الفرعي</label>
-                                        <select value={form.subcategory} onChange={e => set('subcategory', e.target.value)}
-                                            className="w-full bg-white/5 border border-white/15 rounded-xl py-3 px-4 text-white text-sm focus:outline-none focus:border-yellow-400/60 transition">
-                                            <option value="" className="bg-[#12122a]">اختر تصنيفاً فرعياً</option>
-                                            {selectedCategory.subcategories.map(s => <option key={s.id} value={s.name} className="bg-[#12122a]">{s.name}</option>)}
-                                        </select>
+                                        <label className="text-gray-300 text-sm font-arabic mb-2 block">التصنيفات الفرعية (يمكنك اختيار أكثر من واحد)</label>
+                                        <div className="flex flex-wrap gap-2 p-3 rounded-xl bg-white/5 border border-white/10 min-h-[60px]">
+                                            {selectedCategory.subcategories.map(s => {
+                                                const isSelected = form.subcategories?.includes(s.name);
+                                                return (
+                                                    <button
+                                                        key={s.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const current = form.subcategories || [];
+                                                            if (isSelected) {
+                                                                set('subcategories', current.filter(name => name !== s.name));
+                                                            } else {
+                                                                set('subcategories', [...current, s.name]);
+                                                            }
+                                                        }}
+                                                        className={`px-4 py-2 rounded-xl text-xs font-arabic font-bold transition-all border ${isSelected
+                                                            ? 'bg-yellow-400 text-black border-transparent shadow-lg shadow-yellow-400/20'
+                                                            : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/20'
+                                                            }`}
+                                                    >
+                                                        {s.name}
+                                                        {isSelected && <MdCheck className="inline-block mr-1" />}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 )}
                                 <div className="flex items-center gap-3">
@@ -407,6 +441,153 @@ const MovieModal = ({ isOpen, onClose, onSave, editData, categories }) => {
     );
 };
 
+const MovieDetailsModal = ({ isOpen, onClose, movie, categories }) => {
+    if (!isOpen || !movie) return null;
+
+    const categoryLabel = categories.find(c => c.id === movie.category)?.label || 'بدون تصنيف';
+
+    return (
+        <AnimatePresence>
+            <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6"
+                style={{ background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(15px)' }}
+            >
+                <motion.div
+                    initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                    className="w-full max-w-4xl bg-[#0a0a1a] rounded-[2.5rem] overflow-hidden border border-white/10 shadow-2xl flex flex-col max-h-[90vh]"
+                >
+                    {/* Backdrop Header */}
+                    <div className="relative h-48 sm:h-72 flex-shrink-0">
+                        <img src={movie.backdrop || movie.poster} alt="" className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a1a] via-[#0a0a1a]/40 to-transparent" />
+
+                        <button onClick={onClose} className="absolute top-6 left-6 p-2.5 rounded-2xl bg-black/40 text-white backdrop-blur-md border border-white/10 hover:bg-white/10 transition-all z-10">
+                            <MdClose className="text-xl" />
+                        </button>
+
+                        <div className="absolute bottom-0 right-0 left-0 p-8 flex items-end gap-6">
+                            <div className="w-24 h-36 sm:w-32 sm:h-48 rounded-2xl overflow-hidden border-2 border-white/10 shadow-2xl flex-shrink-0 hidden sm:block">
+                                <img src={movie.poster} alt="" className="w-full h-full object-cover" />
+                            </div>
+                            <div className="flex-1 pb-2">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <h2 className="text-2xl sm:text-4xl font-black text-white font-arabic tracking-tight">{movie.titleAr || movie.title}</h2>
+                                    {movie.featured && <MdStar className="text-yellow-400 text-2xl" />}
+                                </div>
+                                <div className="flex flex-wrap items-center gap-4 text-gray-400 text-sm font-semibold">
+                                    <span className="text-yellow-400">{movie.year}</span>
+                                    <div className="w-1 h-1 rounded-full bg-gray-600" />
+                                    <span className="flex items-center gap-1"><MdStar className="text-yellow-400" /> {movie.rating}</span>
+                                    <div className="w-1 h-1 rounded-full bg-gray-600" />
+                                    <span>{movie.duration}</span>
+                                    <div className="w-1 h-1 rounded-full bg-gray-600" />
+                                    <span className="px-2 py-0.5 rounded-lg bg-white/5 text-xs border border-white/10">{movie.quality}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Scrollable Content */}
+                    <div className="flex-1 overflow-y-auto p-8 pt-6 hide-scrollbar">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                            {/* Main Info */}
+                            <div className="lg:col-span-2 space-y-8">
+                                <div>
+                                    <h4 className="text-gray-400 text-xs font-black font-arabic uppercase tracking-widest mb-3 opacity-50">قصة الفيلم</h4>
+                                    <p className="text-gray-300 leading-relaxed font-arabic text-lg">{movie.overview || 'لا يوجد وصف متاح.'}</p>
+                                </div>
+
+                                {movie.cast?.length > 0 && (
+                                    <div>
+                                        <h4 className="text-gray-400 text-xs font-black font-arabic uppercase tracking-widest mb-4 opacity-50">طاقم العمل</h4>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                                            {movie.cast.slice(0, 6).map((actor, i) => (
+                                                <div key={i} className="flex items-center gap-3 p-2 rounded-2xl bg-white/5 border border-white/5">
+                                                    <img src={actor.photo || 'https://via.placeholder.com/40'} alt="" className="w-10 h-10 rounded-full object-cover" />
+                                                    <div className="min-w-0">
+                                                        <p className="text-white text-xs font-bold truncate">{actor.name}</p>
+                                                        <p className="text-gray-500 text-[10px] truncate">{actor.character}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {movie.servers?.length > 0 && (
+                                    <div>
+                                        <h4 className="text-gray-400 text-xs font-black font-arabic uppercase tracking-widest mb-4 opacity-50">سيرفرات المشاهدة والتحميل</h4>
+                                        <div className="space-y-3">
+                                            {movie.servers.map((srv, i) => (
+                                                <div key={i} className="flex items-center justify-between p-4 rounded-2xl bg-yellow-400/5 border border-yellow-400/10">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 rounded-xl bg-yellow-400/10 flex items-center justify-center text-yellow-400">
+                                                            <MdPlayCircle className="text-xl" />
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-white text-sm font-bold font-arabic">{srv.name}</p>
+                                                            <p className="text-gray-500 text-xs">{srv.quality} • {srv.type}</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        {srv.watchLink && <span className="px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 text-[10px] font-bold">Watch</span>}
+                                                        {srv.downloadLink && <span className="px-3 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 text-[10px] font-bold">Download</span>}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Sidebar Info */}
+                            <div className="space-y-8">
+                                <div className="p-6 rounded-[2rem] bg-white/5 border border-white/5 space-y-6">
+                                    <div>
+                                        <h4 className="text-gray-500 text-[10px] font-black font-arabic uppercase tracking-tighter mb-2 opacity-50">التصنيف</h4>
+                                        <p className="text-white font-bold font-arabic">{categoryLabel}</p>
+                                    </div>
+                                    {movie.subcategories?.length > 0 && (
+                                        <div>
+                                            <h4 className="text-gray-500 text-[10px] font-black font-arabic uppercase tracking-tighter mb-3 opacity-50">تصنيفات فرعية</h4>
+                                            <div className="flex flex-wrap gap-2">
+                                                {movie.subcategories.map(s => (
+                                                    <span key={s} className="px-3 py-1 rounded-lg bg-white/5 text-gray-300 text-[10px] font-bold border border-white/10">{s}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {movie.genres?.length > 0 && (
+                                        <div>
+                                            <h4 className="text-gray-500 text-[10px] font-black font-arabic uppercase tracking-tighter mb-3 opacity-50">الأنواع</h4>
+                                            <div className="flex flex-wrap gap-2">
+                                                {movie.genres.map(g => (
+                                                    <span key={g} className="px-3 py-1 rounded-lg bg-yellow-400/10 text-yellow-400 text-[10px] font-bold border border-yellow-400/20">{g}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {movie.parts?.length > 0 && (
+                                        <div>
+                                            <h4 className="text-gray-500 text-[10px] font-black font-arabic uppercase tracking-tighter mb-2 opacity-50">الأجزاء</h4>
+                                            <p className="text-white font-bold font-arabic">{movie.parts.length + 1} أجزاء متوفرة</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </motion.div>
+            </motion.div>
+        </AnimatePresence>
+    );
+};
+
 // مكوّن إدارة أجزاء الفيلم
 const PartsPanel = ({ movieId, parts, onUpdate }) => {
     const [newPartForm, setNewPartForm] = useState({ partNumber: '', name: '', poster: '', servers: [] });
@@ -527,26 +708,65 @@ const MoviesManager = () => {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [modalOpen, setModalOpen] = useState(false);
+    const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
     const [editMovie, setEditMovie] = useState(null);
     const [expandedMovie, setExpandedMovie] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
+    const [previewMovie, setPreviewMovie] = useState(null);
+
+    const [folders, setFolders] = useState([]);
+    const [activeFolder, setActiveFolder] = useState('all');
+    const [folderModal, setFolderModal] = useState(false);
+    const [editFolder, setEditFolder] = useState(null);
+    const [folderForm, setFolderForm] = useState({ label: '', order: 1 });
 
     const load = async () => {
         setLoading(true);
-        const [m, c] = await Promise.all([getMovies(), getCategories()]);
+        await initDefaultCategories();
+        const [m, c, f] = await Promise.all([getMovies(), getCategories(), getMovieFolders()]);
         setMovies(m);
         setCategories(c);
+        setFolders(f);
         setLoading(false);
     };
 
     useEffect(() => { load(); }, []);
 
     const handleSave = async (form) => {
+        // التحقق من التكرار
+        const isDuplicate = movies.some(m => {
+            if (editMovie && m.id === editMovie.id) return false;
+            const sameTitleAr = form.titleAr && m.titleAr && form.titleAr.trim() === m.titleAr.trim();
+            const sameTitleEn = form.titleEn && m.titleEn && form.titleEn.trim().toLowerCase() === m.titleEn.trim().toLowerCase();
+            const sameOverview = form.overview && m.overview && form.overview.trim() === m.overview.trim();
+            return sameTitleAr || sameTitleEn || sameOverview;
+        });
+
+        if (isDuplicate) {
+            alert('خطأ: يوجد فيلم بنفس الاسم أو نفس القصة مسبقاً. يرجى التأكد من البيانات لمنع التكرار.');
+            return;
+        }
+
         if (editMovie) {
             await updateMovie(editMovie.id, form);
         } else {
             await addMovie(form);
         }
+        await load();
+    };
+
+    const handleSaveFolder = async () => {
+        if (!folderForm.label) return;
+        if (editFolder) { await updateMovieFolder(editFolder.id, folderForm); }
+        else { await addMovieFolder(folderForm); }
+        setFolderModal(false); setEditFolder(null);
+        setFolderForm({ label: '', order: 1 });
+        await load();
+    };
+
+    const handleDeleteFolder = async (id) => {
+        if (!confirm('حذف المجلد؟')) return;
+        await deleteMovieFolder(id);
         await load();
     };
 
@@ -556,11 +776,15 @@ const MoviesManager = () => {
         await load();
     };
 
-    const filtered = movies.filter(m =>
-        m.title?.toLowerCase().includes(search.toLowerCase()) ||
-        m.titleAr?.includes(search) ||
-        m.titleEn?.toLowerCase().includes(search.toLowerCase())
-    );
+    const filtered = movies.filter(m => {
+        const matchesSearch = m.title?.toLowerCase().includes(search.toLowerCase()) ||
+            m.titleAr?.includes(search) ||
+            m.titleEn?.toLowerCase().includes(search.toLowerCase());
+
+        const matchesFolder = activeFolder === 'all' ? true : m.folderId === activeFolder;
+
+        return matchesSearch && matchesFolder;
+    });
 
     return (
         <div className="space-y-6">
@@ -570,12 +794,58 @@ const MoviesManager = () => {
                     <h1 className="text-2xl font-black text-white font-arabic">إدارة الأفلام</h1>
                     <p className="text-gray-400 text-sm font-arabic">{movies.length} فيلم محفوظ</p>
                 </div>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setIsUrlModalOpen(true)}
+                        className="flex items-center gap-2 px-5 py-3 rounded-xl text-white font-bold text-sm bg-white/10 hover:bg-white/20 transition-all border border-white/10"
+                    >
+                        <MdLink className="text-lg" /> استبدال الروابط
+                    </button>
+                    <button
+                        onClick={() => { setEditMovie(null); setModalOpen(true); }}
+                        className="flex items-center gap-2 px-5 py-3 rounded-xl text-black font-bold text-sm"
+                        style={{ background: 'linear-gradient(135deg, #ffd700, #ff8c00)' }}
+                    >
+                        <MdAdd className="text-lg" /> إضافة فيلم
+                    </button>
+                </div>
+            </div>
+
+            {/* Folders Navigation */}
+            <div className="flex items-center gap-3 overflow-x-auto pb-4 hide-scrollbar -mx-2 px-2">
                 <button
-                    onClick={() => { setEditMovie(null); setModalOpen(true); }}
-                    className="flex items-center gap-2 px-5 py-3 rounded-xl text-black font-bold text-sm"
-                    style={{ background: 'linear-gradient(135deg, #ffd700, #ff8c00)' }}
+                    onClick={() => setActiveFolder('all')}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-arabic font-bold transition-all border ${activeFolder === 'all'
+                        ? 'bg-yellow-400 text-black border-transparent shadow-lg shadow-yellow-400/20'
+                        : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/20'}`}
                 >
-                    <MdAdd className="text-lg" /> إضافة فيلم
+                    <MdFolder className="text-lg" /> الكل
+                </button>
+
+                {folders.map(folder => (
+                    <div key={folder.id} className="relative group flex-shrink-0">
+                        <button
+                            onClick={() => setActiveFolder(folder.id)}
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-arabic font-bold transition-all border ${activeFolder === folder.id
+                                ? 'bg-yellow-400 text-black border-transparent shadow-lg shadow-yellow-400/20'
+                                : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/20'}`}
+                        >
+                            <MdFolderOpen className="text-lg" /> {folder.label}
+                        </button>
+                        <div className="absolute -top-2 -left-2 opacity-0 group-hover:opacity-100 flex gap-1 transition-opacity z-10">
+                            <button onClick={() => { setEditFolder(folder); setFolderForm(folder); setFolderModal(true); }}
+                                className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center shadow-lg"><MdEdit className="text-xs" /></button>
+                            <button onClick={() => handleDeleteFolder(folder.id)}
+                                className="w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg"><MdDelete className="text-xs" /></button>
+                        </div>
+                    </div>
+                ))}
+
+                <button
+                    onClick={() => { setEditFolder(null); setFolderForm({ label: '', order: folders.length + 1 }); setFolderModal(true); }}
+                    className="flex-shrink-0 w-10 h-10 rounded-xl bg-white/5 border border-dashed border-white/20 text-gray-500 flex items-center justify-center hover:text-white hover:border-yellow-400/50 transition-all"
+                >
+                    <MdAdd className="text-xl" />
                 </button>
             </div>
 
@@ -619,7 +889,11 @@ const MoviesManager = () => {
                             style={{ border: '1px solid rgba(255,255,255,0.08)' }}
                         >
                             {/* Movie Row */}
-                            <div className="flex items-center gap-4 p-4 hover:bg-white/[0.02] transition-colors" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                            <div
+                                onClick={() => setPreviewMovie(movie)}
+                                className="flex items-center gap-4 p-4 hover:bg-white/[0.05] transition-colors cursor-pointer"
+                                style={{ background: 'rgba(255,255,255,0.03)' }}
+                            >
                                 <div className="w-14 h-20 rounded-xl overflow-hidden flex-shrink-0 border border-white/5 shadow-2xl">
                                     <img
                                         src={movie.poster || 'https://via.placeholder.com/60x80?text=N/A'}
@@ -633,14 +907,21 @@ const MoviesManager = () => {
                                         {movie.featured && <span className="p-1 rounded-full bg-yellow-400/20 text-yellow-400"><MdStar className="text-xs" /></span>}
                                     </div>
                                     <p className="text-gray-400 text-sm font-arabic truncate opacity-60">{movie.titleEn}</p>
-                                    <div className="flex items-center gap-3 mt-1.5">
+                                    <div className="flex flex-wrap items-center gap-3 mt-1.5">
                                         <span className="text-gray-500 text-xs font-bold">{movie.year}</span>
                                         <div className="flex items-center gap-1 bg-yellow-400/10 px-1.5 py-0.5 rounded">
                                             <MdStar className="text-yellow-400 text-[10px]" />
                                             <span className="text-yellow-400 text-xs font-bold">{movie.rating}</span>
                                         </div>
                                         <div className="h-1 w-1 rounded-full bg-gray-600" />
-                                        <span className="text-gray-500 text-xs">{movie.category ? categories.find(c => c.id === movie.category)?.label : 'بدون تصنيف'}</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-white/10 text-gray-300 font-arabic border border-white/5">
+                                                {movie.type === 'movie' ? 'فيلم' : 'جزء'}
+                                            </span>
+                                            <span className="text-gray-500 text-xs font-arabic">
+                                                {movie.category ? categories.find(c => c.id === movie.category)?.label : 'بدون تصنيف'}
+                                            </span>
+                                        </div>
                                         {movie.parts?.length > 0 && (
                                             <span className="px-2 py-0.5 rounded-full bg-yellow-400 text-black text-[10px] font-black uppercase tracking-wider">
                                                 {movie.parts.length + 1} أجزاء
@@ -648,7 +929,7 @@ const MoviesManager = () => {
                                         )}
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 flex-shrink-0">
+                                <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
                                     <button
                                         onClick={() => setExpandedMovie(expandedMovie === movie.id ? null : movie.id)}
                                         className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-arabic font-bold transition-all border ${expandedMovie === movie.id ? 'bg-yellow-400 text-black border-transparent' : 'text-yellow-400 border-yellow-400/30 hover:bg-yellow-400/10'}`}
@@ -698,7 +979,37 @@ const MoviesManager = () => {
                 onSave={handleSave}
                 editData={editMovie}
                 categories={categories}
+                folders={folders}
             />
+
+            {/* Folder Modal */}
+            <AnimatePresence>
+                {folderModal && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
+                            className="bg-[#1a1a35] border border-white/10 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+                            <h3 className="text-white font-black font-arabic text-lg mb-4">{editFolder ? 'تعديل المجلد' : 'إضافة مجلد جديد'}</h3>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="text-gray-400 text-xs font-arabic mb-1 block">اسم المجلد</label>
+                                    <input value={folderForm.label} onChange={e => setFolderForm(p => ({ ...p, label: e.target.value }))}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white font-arabic focus:outline-none focus:border-yellow-400/50" dir="rtl" />
+                                </div>
+                                <div>
+                                    <label className="text-gray-400 text-xs font-arabic mb-1 block">الترتيب</label>
+                                    <input type="number" value={folderForm.order} onChange={e => setFolderForm(p => ({ ...p, order: parseInt(e.target.value) }))}
+                                        className="w-full bg-white/5 border border-white/10 rounded-xl py-3 px-4 text-white focus:outline-none focus:border-yellow-400/50" />
+                                </div>
+                                <div className="flex gap-3 pt-2">
+                                    <button onClick={() => setFolderModal(false)} className="flex-1 py-3 bg-white/5 text-gray-400 font-arabic rounded-xl">إلغاء</button>
+                                    <button onClick={handleSaveFolder} className="flex-1 py-3 bg-yellow-400 text-black font-black font-arabic rounded-xl shadow-lg shadow-yellow-400/20">حفظ</button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Delete Confirm */}
             <AnimatePresence>
@@ -736,6 +1047,18 @@ const MoviesManager = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            <MovieDetailsModal
+                isOpen={!!previewMovie}
+                onClose={() => setPreviewMovie(null)}
+                movie={previewMovie}
+                categories={categories}
+            />
+
+            <BulkUrlReplacerModal
+                isOpen={isUrlModalOpen}
+                onClose={() => { setIsUrlModalOpen(false); load(); }}
+            />
         </div>
     );
 };

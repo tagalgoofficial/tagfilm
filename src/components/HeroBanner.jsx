@@ -93,7 +93,7 @@ const HeroBanner = ({ items = [] }) => {
             </AnimatePresence>
 
             {/* Content */}
-            <div className="relative z-10 h-full flex items-center pb-24 sm:pb-16" dir="rtl">
+            <div className="relative z-10 h-full flex items-center pb-32 sm:pb-40" dir="rtl">
                 <div className="container mx-auto px-6 lg:px-16 pt-20">
                     <AnimatePresence mode="wait" custom={direction}>
                         <motion.div
@@ -242,8 +242,8 @@ const HeroBanner = ({ items = [] }) => {
 
             {/* Cinematic Logo Selection Bar */}
             {items.length > 1 && (
-                <div className="absolute bottom-4 sm:bottom-6 left-0 right-0 z-20 flex justify-end px-6 lg:px-16">
-                    <div className="flex items-center gap-4 sm:gap-8 px-4 sm:px-8 py-2 sm:py-4 bg-black/50 backdrop-blur-3xl rounded-full border border-white/10 shadow-[0_25px_60px_rgba(0,0,0,0.7)] overflow-x-auto hide-scrollbar max-w-full sm:max-w-max">
+                <div className="absolute bottom-0 left-0 right-0 z-20 flex justify-center px-6 lg:px-16 pb-2">
+                    <div className="flex items-center gap-4 sm:gap-8 px-4 sm:px-8 py-2 sm:py-3 bg-black/40 backdrop-blur-3xl rounded-full border border-white/5 shadow-[0_25px_60px_rgba(0,0,0,0.5)] overflow-x-auto hide-scrollbar max-w-full sm:max-w-max">
                         {items.map((it, i) => (
                             <button
                                 key={i}
@@ -254,13 +254,13 @@ const HeroBanner = ({ items = [] }) => {
                                     transform: i === current ? 'scale(1.05)' : 'scale(0.9)'
                                 }}
                             >
-                                <div className="h-8 sm:h-16 flex items-center justify-center transition-all duration-500 group-hover:scale-110">
+                                <div className="h-8 sm:h-14 flex items-center justify-center transition-all duration-500 group-hover:scale-110">
                                     {(it.logo || it.titleLogo || it.logoUrl || it.title_logo) ? (
                                         <>
                                             <img
                                                 src={it.logo || it.titleLogo || it.logoUrl || it.title_logo}
                                                 alt={it.title}
-                                                className="h-full w-auto object-contain max-w-[80px] sm:max-w-[160px]"
+                                                className="h-full w-auto object-contain max-w-[70px] sm:max-w-[140px]"
                                                 style={{
                                                     filter: i === current
                                                         ? 'drop-shadow(0 0 15px rgba(255,12,12,0.6))'
@@ -276,7 +276,7 @@ const HeroBanner = ({ items = [] }) => {
                                             </span>
                                         </>
                                     ) : (
-                                        <span className="text-white font-black font-arabic text-sm sm:text-2xl whitespace-nowrap px-5 py-2.5 bg-white/5 rounded-2xl border border-white/10">
+                                        <span className="text-white font-black font-arabic text-sm sm:text-xl whitespace-nowrap px-4 py-2 bg-white/5 rounded-2xl border border-white/10">
                                             {it.title}
                                         </span>
                                     )}
@@ -285,8 +285,8 @@ const HeroBanner = ({ items = [] }) => {
                                 {i === current && (
                                     <motion.div
                                         layoutId="heroNavIndicator"
-                                        className="absolute -bottom-2 w-3/4 h-1.5 bg-red-600 rounded-full"
-                                        style={{ boxShadow: '0 0 25px #ef4444, 0 0 50px rgba(239, 68, 68, 0.5)' }}
+                                        className="absolute -bottom-1 w-3/4 h-1 bg-red-600 rounded-full"
+                                        style={{ boxShadow: '0 0 20px #ef4444' }}
                                     />
                                 )}
                             </button>
@@ -295,35 +295,11 @@ const HeroBanner = ({ items = [] }) => {
                 </div>
             )}
 
-            {/* Arrow Navigation */}
-            {items.length > 1 && (
-                <>
-                    <button
-                        onClick={() => { setAutoPlay(false); next(); }}
-                        className="absolute left-6 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
-                        style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}
-                    >
-                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </button>
-                    <button
-                        onClick={() => { setAutoPlay(false); prev(); }}
-                        className="absolute right-6 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 hover:scale-110"
-                        style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)' }}
-                    >
-                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                    </button>
-                </>
-            )}
-
             {/* Mute Toggle */}
             <button
                 onClick={() => setMuted(!muted)}
-                className="absolute bottom-24 sm:bottom-28 left-6 sm:left-8 z-20 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200"
-                style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.25)', backdropFilter: 'blur(8px)' }}
+                className="absolute bottom-20 sm:bottom-24 left-6 sm:left-8 z-20 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200"
+                style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)' }}
             >
                 {muted ? <MdVolumeOff className="text-white text-lg" /> : <MdVolumeUp className="text-white text-lg" />}
             </button>
@@ -332,9 +308,9 @@ const HeroBanner = ({ items = [] }) => {
             <motion.div
                 animate={{ y: [0, 8, 0] }}
                 transition={{ duration: 1.8, repeat: Infinity }}
-                className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1 opacity-60"
+                className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1 opacity-40"
             >
-                <BsChevronDown className="text-white text-xl" />
+                <BsChevronDown className="text-white text-lg" />
             </motion.div>
 
             {/* Bottom fade */}

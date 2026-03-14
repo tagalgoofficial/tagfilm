@@ -135,6 +135,11 @@ const SeriesPage = () => {
                             title={series.titleAr || series.title}
                             subtitle={`الموسم ${currentSeason?.seasonNumber} • الحلقة ${activeEpisode.episodeNumber}`}
                             introEnd={introEnd}
+                            mediaId={id}
+                            mediaType="series"
+                            currentEpisode={activeEpisode}
+                            nextEpisode={episodes.find(e => Number(e.episodeNumber) === Number(activeEpisode.episodeNumber) + 1)}
+                            onNavigateToEpisode={handleEpisodeClick}
                         />
 
                         {/* Server Selection */}

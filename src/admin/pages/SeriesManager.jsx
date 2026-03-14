@@ -16,10 +16,11 @@ import {
 } from '../../firebase/seriesFoldersService';
 import { getCategories } from '../../firebase/categoriesService';
 import TMDBSearchModal from '../components/TMDBSearchModal';
+import BulkUrlReplacerModal from '../components/BulkUrlReplacerModal';
 
 const emptySeriesForm = {
     title: '', titleAr: '', titleEn: '', overview: '', poster: '', backdrop: '', logo: '',
-    year: '', rating: '', quality: 'WEB-DL', introDuration: '', category: '', subcategory: '',
+    year: '', rating: '', quality: 'WEB-DL', introDuration: '', category: '', subcategories: [],
     folderId: '', cast: [], featured: false, isComingSoon: false, tmdbId: null, seasons: [], type: 'series',
 };
 
@@ -88,6 +89,7 @@ const SeriesModal = ({ isOpen, onClose, onSave, editData, categories, folders })
             year: data.year,
             rating: data.rating,
             cast: data.cast,
+            logo: data.logo,
             tmdbId: data.tmdbId,
             seasonsCount: data.seasonsCount,
         }));
@@ -189,7 +191,7 @@ const SeriesModal = ({ isOpen, onClose, onSave, editData, categories, folders })
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="text-gray-300 text-sm font-arabic mb-1 block">التصنيف</label>
-                                        <select value={form.category} onChange={e => { set('category', e.target.value); set('subcategory', ''); }}
+                                        <select value={form.category} onChange={e => { set('category', e.target.value); set('subcategories', []); }}
                                             className="w-full bg-white/5 border border-white/15 rounded-xl py-3 px-4 text-white text-sm focus:outline-none">
                                             <option value="" className="bg-[#12122a]">اختر تصنيفاً</option>
                                             {categories.map(c => <option key={c.id} value={c.id} className="bg-[#12122a]">{c.label}</option>)}
@@ -205,13 +207,34 @@ const SeriesModal = ({ isOpen, onClose, onSave, editData, categories, folders })
                                     </div>
                                 </div>
                                 {selectedCat?.subcategories?.length > 0 && (
-                                    <div>
-                                        <label className="text-gray-300 text-sm font-arabic mb-1 block">التصنيف الفرعي</label>
-                                        <select value={form.subcategory} onChange={e => set('subcategory', e.target.value)}
-                                            className="w-full bg-white/5 border border-white/15 rounded-xl py-3 px-4 text-white text-sm focus:outline-none">
-                                            <option value="" className="bg-[#12122a]">اختر فرعياً</option>
-                                            {selectedCat.subcategories.map(s => <option key={s.id} value={s.name} className="bg-[#12122a]">{s.name}</option>)}
-                                        </select>
+                                    <div className="col-span-2">
+                                        <label className="text-gray-300 text-sm font-arabic mb-2 block">التصنيفات الفرعية (متعدد)</label>
+                                        <div className="flex flex-wrap gap-2 p-3 rounded-xl bg-white/5 border border-white/10 min-h-[60px]">
+                                            {selectedCat.subcategories.map(s => {
+                                                const isSelected = form.subcategories?.includes(s.name);
+                                                return (
+                                                    <button
+                                                        key={s.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const current = form.subcategories || [];
+                                                            if (isSelected) {
+                                                                set('subcategories', current.filter(name => name !== s.name));
+                                                            } else {
+                                                                set('subcategories', [...current, s.name]);
+                                                            }
+                                                        }}
+                                                        className={`px-4 py-2 rounded-xl text-xs font-arabic font-bold transition-all border ${isSelected
+                                                            ? 'bg-cyan-400 text-black border-transparent shadow-lg shadow-cyan-400/20'
+                                                            : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/20'
+                                                            }`}
+                                                    >
+                                                        {s.name}
+                                                        {isSelected && <MdCheck className="inline-block mr-1" />}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 )}
                             </>
@@ -718,6 +741,7 @@ const SeriesManager = () => {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [modalOpen, setModalOpen] = useState(false);
+    const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
     const [editSeries, setEditSeries] = useState(null);
     const [expandedSeries, setExpandedSeries] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
@@ -741,6 +765,23 @@ const SeriesManager = () => {
     useEffect(() => { load(); }, []);
 
     const handleSave = async (form) => {
+        // التحقق من التكرار
+        const isDuplicate = seriesList.some(s => {
+            // إذا كنا في وضع التعديل، نتخطى المسلسل الحالي نفسه
+            if (editSeries && s.id === editSeries.id) return false;
+
+            const sameTitleAr = form.titleAr && s.titleAr && form.titleAr.trim() === s.titleAr.trim();
+            const sameTitleEn = form.titleEn && s.titleEn && form.titleEn.trim().toLowerCase() === s.titleEn.trim().toLowerCase();
+            const sameOverview = form.overview && s.overview && form.overview.trim() === s.overview.trim();
+
+            return sameTitleAr || sameTitleEn || sameOverview;
+        });
+
+        if (isDuplicate) {
+            alert('خطأ: يوجد مسلسل بنفس الاسم أو نفس القصة مسبقاً. يرجى التأكد من البيانات لمنع التكرار.');
+            return;
+        }
+
         if (editSeries) { await updateSeries(editSeries.id, form); }
         else { await addSeries(form); }
         await load();
@@ -777,7 +818,7 @@ const SeriesManager = () => {
 
     const handleBulkAutoGenerate = async () => {
         const TARGET_CAT = "مسلسلات رمضان 2026";
-        const targets = seriesList.filter(s => s.subcategory === TARGET_CAT);
+        const targets = seriesList.filter(s => s.subcategories?.includes(TARGET_CAT) || s.subcategory === TARGET_CAT);
 
         if (targets.length === 0) return alert(`لا توجد مسلسلات تحت تصنيف "${TARGET_CAT}"`);
         if (!confirm(`هل أنت متأكد من توليد حلقة جديدة لـ ${targets.length} مسلسل من "${TARGET_CAT}"؟`)) return;
@@ -837,6 +878,10 @@ const SeriesManager = () => {
                     <p className="text-gray-400 text-sm font-arabic">{seriesList.length} مسلسل محفوظ</p>
                 </div>
                 <div className="flex items-center gap-3">
+                    <button onClick={() => setIsUrlModalOpen(true)}
+                        className="flex items-center gap-2 px-5 py-3 rounded-xl text-white font-bold text-sm bg-white/10 hover:bg-white/20 transition-all border border-white/10">
+                        <MdLink className="text-lg" /> استبدال الروابط
+                    </button>
                     <button onClick={handleBulkAutoGenerate}
                         className="flex items-center gap-2 px-5 py-3 rounded-xl bg-yellow-400 text-black border border-yellow-500 hover:scale-[1.02] active:scale-95 transition-all font-black text-sm shadow-lg shadow-yellow-400/20">
                         <MdPlayCircle className="text-xl" /> توليد حلقات رمضان 2026
@@ -1017,6 +1062,11 @@ const SeriesManager = () => {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            <BulkUrlReplacerModal
+                isOpen={isUrlModalOpen}
+                onClose={() => { setIsUrlModalOpen(false); load(); }}
+            />
         </div>
     );
 };

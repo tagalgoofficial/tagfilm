@@ -31,12 +31,15 @@ export const searchSeries = async (query) => {
 
 // جلب تفاصيل فيلم كاملة مع الممثلين
 export const getMovieDetails = async (movieId) => {
-    const [detailsRes, creditsRes] = await Promise.all([
+    const [detailsRes, creditsRes, imagesRes] = await Promise.all([
         axios.get(`${BASE_URL}/movie/${movieId}`, {
             params: { api_key: API_KEY, language: 'ar' }
         }),
         axios.get(`${BASE_URL}/movie/${movieId}/credits`, {
             params: { api_key: API_KEY, language: 'ar' }
+        }),
+        axios.get(`${BASE_URL}/movie/${movieId}/images`, {
+            params: { api_key: API_KEY }
         })
     ]);
 
@@ -48,6 +51,11 @@ export const getMovieDetails = async (movieId) => {
         photo: actor.profile_path ? `${IMAGE_BASE}${actor.profile_path}` : null,
     }));
 
+    // استخراج اللوجو (يفضل الإنجليزي أو بدون لغة)
+    const logos = imagesRes.data.logos || [];
+    const bestLogo = logos.find(l => l.iso_639_1 === 'en') || logos[0];
+    const logoUrl = bestLogo ? `${BACKDROP_BASE}${bestLogo.file_path}` : null;
+
     return {
         tmdbId: movie.id,
         title: movie.title,
@@ -56,6 +64,7 @@ export const getMovieDetails = async (movieId) => {
         overview: movie.overview,
         poster: movie.poster_path ? `${IMAGE_BASE}${movie.poster_path}` : null,
         backdrop: movie.backdrop_path ? `${BACKDROP_BASE}${movie.backdrop_path}` : null,
+        logo: logoUrl,
         year: movie.release_date?.split('-')[0] || '',
         rating: movie.vote_average?.toFixed(1) || '0',
         duration: movie.runtime ? `${Math.floor(movie.runtime / 60)}h ${movie.runtime % 60}m` : '',
@@ -66,12 +75,15 @@ export const getMovieDetails = async (movieId) => {
 
 // جلب تفاصيل مسلسل كاملة مع الممثلين
 export const getSeriesDetails = async (seriesId) => {
-    const [detailsRes, creditsRes] = await Promise.all([
+    const [detailsRes, creditsRes, imagesRes] = await Promise.all([
         axios.get(`${BASE_URL}/tv/${seriesId}`, {
             params: { api_key: API_KEY, language: 'ar' }
         }),
         axios.get(`${BASE_URL}/tv/${seriesId}/credits`, {
             params: { api_key: API_KEY, language: 'ar' }
+        }),
+        axios.get(`${BASE_URL}/tv/${seriesId}/images`, {
+            params: { api_key: API_KEY }
         })
     ]);
 
@@ -83,6 +95,11 @@ export const getSeriesDetails = async (seriesId) => {
         photo: actor.profile_path ? `${IMAGE_BASE}${actor.profile_path}` : null,
     }));
 
+    // استخراج اللوجو
+    const logos = imagesRes.data.logos || [];
+    const bestLogo = logos.find(l => l.iso_639_1 === 'en') || logos[0];
+    const logoUrl = bestLogo ? `${BACKDROP_BASE}${bestLogo.file_path}` : null;
+
     return {
         tmdbId: series.id,
         title: series.name,
@@ -91,6 +108,7 @@ export const getSeriesDetails = async (seriesId) => {
         overview: series.overview,
         poster: series.poster_path ? `${IMAGE_BASE}${series.poster_path}` : null,
         backdrop: series.backdrop_path ? `${BACKDROP_BASE}${series.backdrop_path}` : null,
+        logo: logoUrl,
         year: series.first_air_date?.split('-')[0] || '',
         rating: series.vote_average?.toFixed(1) || '0',
         seasonsCount: series.number_of_seasons || 0,

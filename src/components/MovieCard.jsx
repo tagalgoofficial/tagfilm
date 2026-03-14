@@ -66,8 +66,14 @@ const MovieCard = ({ movie }) => {
                                     <div className="space-y-2">
                                         <p className="text-yellow-400 text-[10px] font-black uppercase tracking-widest font-arabic">قصة العمل</p>
                                         <p className="text-white/80 text-xs font-arabic leading-relaxed line-clamp-4">
-                                            {movie.overview || "لا يوجد وصف متاح لهذا العمل حالياً."}
+                                            {movie.overview || movie.description || "لا يوجد وصف متاح لهذا العمل حالياً."}
                                         </p>
+
+                                        <div className="flex items-center gap-2 mt-4">
+                                            <span className="text-[10px] text-yellow-400 font-bold">{movie.year || '2024'}</span>
+                                            <span className="w-1 h-1 rounded-full bg-white/20" />
+                                            <span className="text-[10px] text-gray-400">{movie.quality || 'HD'}</span>
+                                        </div>
                                     </div>
 
                                     {/* Action Button */}

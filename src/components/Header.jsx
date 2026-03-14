@@ -2,14 +2,18 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { FiSearch } from 'react-icons/fi';
 import { AiFillHeart } from 'react-icons/ai';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import logo from '../assets/Logo.png';
+import logoWebm from '../assets/logo.webm';
 import { useFavorites } from '../context/FavoritesContext';
+import { useAuth } from '../context/AuthContext';
 
 const Header = () => {
+    const navigate = useNavigate();
     const [scrolled, setScrolled] = useState(false);
     const [searchOpen, setSearchOpen] = useState(false);
     const { favorites } = useFavorites();
+    const { user, activeProfile } = useAuth();
 
     useEffect(() => {
         const handleScroll = () => setScrolled(window.scrollY > 60);
@@ -41,11 +45,16 @@ const Header = () => {
                             whileTap={{ scale: 0.95 }}
                             className="flex items-center gap-2.5 flex-shrink-0"
                         >
-                            <img
-                                src={logo}
-                                alt="TagFilm Logo"
-                                className="h-[60px] sm:h-[80px] w-auto object-contain drop-shadow-[0_0_20px_rgba(255,215,0,0.3)]"
-                            />
+                            <video
+                                autoPlay
+                                loop
+                                muted
+                                playsInline
+                                className="h-[50px] sm:h-[70px] w-auto object-contain drop-shadow-[0_0_15px_rgba(255,215,0,0.4)]"
+                            >
+                                <source src={logoWebm} type="video/webm" />
+                                <img src={logo} alt="TagFilm Logo" className="h-[50px] sm:h-[70px] w-auto object-contain" />
+                            </video>
                         </motion.div>
                     </Link>
 
@@ -70,7 +79,7 @@ const Header = () => {
 
                 {/* Left Side: Search + Favorites */}
                 <div className="flex items-center gap-2 sm:gap-4">
-                    <AnimatedSearch open={searchOpen} onToggle={() => setSearchOpen(!searchOpen)} />
+                    <AnimatedSearch />
 
                     <Link to="/favorites" className="hidden sm:block">
                         <motion.div
@@ -86,37 +95,65 @@ const Header = () => {
                             )}
                         </motion.div>
                     </Link>
+
+                    {user ? (
+                        <div className="relative group/profile">
+                            <motion.div
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white border-2 border-transparent hover:border-white transition-all overflow-hidden cursor-pointer"
+                            >
+                                {activeProfile?.name?.charAt(0) || user.email.charAt(0).toUpperCase()}
+                            </motion.div>
+
+                            {/* Dropdown Menu */}
+                            <div className="absolute left-0 mt-2 w-48 bg-[#0a0a1f] border border-white/10 rounded-xl shadow-2xl opacity-0 invisible group-hover/profile:opacity-100 group-hover/profile:visible transition-all duration-300 z-[100] overflow-hidden">
+                                <Link to="/profile" className="block px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-b border-white/5 font-arabic">
+                                    الملف الشخصي
+                                </Link>
+                                <Link to="/profiles" className="block px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-b border-white/5 font-arabic">
+                                    إدارة الملفات
+                                </Link>
+                                <Link to="/account" className="block px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-b border-white/5 font-arabic">
+                                    إعدادات الحساب
+                                </Link>
+                                <button
+                                    onClick={() => {/* logout logic will be handled by the context but I'll add a simple way here if needed or just let them go to account to logout */ }}
+                                    className="w-full text-right block px-4 py-3 text-sm text-red-400 hover:bg-red-400/10 transition-colors font-arabic"
+                                >
+                                    تسجيل الخروج
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <Link to="/login">
+                            <motion.button
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-lg text-sm font-bold font-arabic transition-all shadow-lg shadow-blue-900/40"
+                            >
+                                دخول
+                            </motion.button>
+                        </Link>
+                    )}
                 </div>
             </div>
         </motion.header>
     );
 };
 
-const AnimatedSearch = ({ open, onToggle }) => (
-    <div className="flex items-center">
-        <motion.div
-            animate={{ width: open ? 220 : 0, opacity: open ? 1 : 0 }}
-            transition={{ duration: 0.3, ease: 'easeInOut' }}
-            style={{ overflow: 'hidden' }}
-        >
-            <input
-                type="text"
-                placeholder="ابحث عن أفلام، مسلسلات..."
-                autoFocus={open}
-                className="w-full bg-white/8 border border-white/15 rounded-full px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:border-yellow-400/50 text-sm font-arabic"
-                style={{ background: 'rgba(255,255,255,0.06)' }}
-            />
-        </motion.div>
+const AnimatedSearch = () => {
+    const navigate = useNavigate();
+    return (
         <motion.button
-            onClick={onToggle}
+            onClick={() => navigate('/search')}
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
-            className="ml-2 w-9 h-9 rounded-full flex items-center justify-center transition-all"
-            style={{ background: open ? 'rgba(255,215,0,0.15)' : 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}
+            className="w-9 h-9 rounded-full flex items-center justify-center transition-all bg-white/5 border border-white/10 hover:border-blue-500/50 hover:bg-blue-500/10"
         >
             <FiSearch className="text-white text-base" />
         </motion.button>
-    </div>
-);
+    );
+};
 
 export default Header;

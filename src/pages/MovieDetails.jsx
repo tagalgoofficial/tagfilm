@@ -9,7 +9,7 @@ import { MdMovieFilter, MdLanguage, MdCalendarToday } from 'react-icons/md';
 import Header from '../components/Header';
 import VideoPlayer from '../components/VideoPlayer';
 import { getMovie } from '../firebase/moviesService';
-import { getCategories } from '../firebase/categoriesService';
+import Skeleton from '../components/Skeleton';
 
 const MovieDetails = () => {
     const { id } = useParams();
@@ -51,8 +51,24 @@ const MovieDetails = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#050514] flex items-center justify-center">
-                <div className="w-16 h-16 rounded-full border-4 border-yellow-400 border-t-transparent animate-spin" />
+            <div className="min-h-screen bg-[#050514]" dir="rtl">
+                <Header />
+                <div className="relative h-[60vh] w-full">
+                    <Skeleton className="w-full h-full" />
+                    <div className="absolute inset-x-0 bottom-0 p-8 md:p-12 space-y-4">
+                        <Skeleton variant="text" className="w-64 h-12" />
+                        <div className="flex gap-4">
+                            <Skeleton variant="text" className="w-24 h-4" />
+                            <Skeleton variant="text" className="w-24 h-4" />
+                            <Skeleton variant="text" className="w-24 h-4" />
+                        </div>
+                    </div>
+                </div>
+                <div className="p-8 md:p-12">
+                    <Skeleton variant="text" className="w-full h-4 mb-2" />
+                    <Skeleton variant="text" className="w-full h-4 mb-2" />
+                    <Skeleton variant="text" className="w-3/4 h-4" />
+                </div>
             </div>
         );
     }
@@ -108,6 +124,8 @@ const MovieDetails = () => {
                             poster={movie.backdrop || movie.poster}
                             title={movie.titleAr || movie.title}
                             introEnd={Number(movie.introDuration || 0)}
+                            mediaId={id}
+                            mediaType="movie"
                         />
                         {/* Server Selection below player */}
                         {servers.length > 1 && (

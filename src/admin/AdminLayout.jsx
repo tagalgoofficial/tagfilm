@@ -12,6 +12,7 @@ const navItems = [
     { path: '/admin', label: 'لوحة التحكم', icon: MdDashboard, exact: true },
     { path: '/admin/movies', label: 'إدارة الأفلام', icon: BiCameraMovie },
     { path: '/admin/series', label: 'إدارة المسلسلات', icon: MdLiveTv },
+    { path: '/admin/movie-categories', label: 'تصنيفات الأفلام', icon: MdCategory },
     { path: '/admin/categories', label: 'إدارة التصنيفات', icon: MdCategory },
     { path: '/admin/sections', label: 'إدارة الأقسام', icon: MdViewCarousel },
     { path: '/admin/featured', label: 'الكافر المميز ⭐', icon: MdStar },

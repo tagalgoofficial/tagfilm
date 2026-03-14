@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../context/AuthContext';
+import { db } from '../firebase/config';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 /* =====================
    أيقونات SVG داخلية
@@ -66,7 +69,14 @@ const formatTime = (secs) => {
 /* =====================
    المشغل الرئيسي
    ===================== */
-const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNext, hasPrev, poster }) => {
+const VideoPlayer = ({
+    src, title, subtitle, introEnd = 0,
+    onNext, onPrev, hasNext, hasPrev,
+    poster, mediaId, mediaType,
+    currentEpisode, nextEpisode, onNavigateToEpisode,
+    subtitles = []
+}) => {
+    const { user, activeProfile } = useAuth();
     const videoRef = useRef(null);
     const containerRef = useRef(null);
     const progressRef = useRef(null);
@@ -96,8 +106,74 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
     const [showVolumeSlider, setShowVolumeSlider] = useState(false);
     const [doubleTapSide, setDoubleTapSide] = useState(null); // 'left' | 'right'
     const [castAvailable, setCastAvailable] = useState(false);
+    const [showNextEpisodeOverlay, setShowNextEpisodeOverlay] = useState(false);
+    const [showEndOverlay, setShowEndOverlay] = useState(false);
+    const [countdown, setCountdown] = useState(10);
+    const [activeSubtitle, setActiveSubtitle] = useState(-1); // -1 = off
+    const countdownTimer = useRef(null);
+    const saveTimer = useRef(null);
+
+    // إعادة ضبط overlay الحلقة عند تغيير المصدر
+    useEffect(() => {
+        setShowNextEpisodeOverlay(false);
+        setShowEndOverlay(false);
+        clearInterval(countdownTimer.current);
+        setCountdown(10);
+    }, [src]);
+
+    /* ---- حفظ التقدم (Continue Watching) ---- */
+    const saveProgress = useCallback(async (time) => {
+        if (!user || !activeProfile || !mediaId) return;
+        try {
+            const historyId = `${activeProfile.id}_${mediaId}`;
+            const historyRef = doc(db, 'users', user.uid, 'watchHistory', historyId);
+            const isFinished = duration > 0 && time / duration > 0.95;
+            await setDoc(historyRef, {
+                mediaId, mediaType, progress: time, duration,
+                title, poster, lastWatched: serverTimestamp(), finished: isFinished
+            }, { merge: true });
+        } catch (error) {
+            console.error('Error saving progress:', error);
+        }
+    }, [user, activeProfile, mediaId, duration, title, poster, mediaType]);
+
+    // استرجاع التقدم المحفوظ
+    useEffect(() => {
+        const fetchProgress = async () => {
+            if (!user || !activeProfile || !mediaId) return;
+            try {
+                const historyId = `${activeProfile.id}_${mediaId}`;
+                const docRef = doc(db, 'users', user.uid, 'watchHistory', historyId);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists() && !docSnap.data().finished) {
+                    const savedTime = docSnap.data().progress;
+                    if (savedTime > 10 && videoRef.current) {
+                        videoRef.current.currentTime = savedTime;
+                        setCurrentTime(savedTime);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching progress:', error);
+            }
+        };
+        fetchProgress();
+    }, [user, activeProfile, mediaId]);
+
+    // حفظ دوري كل 10 ثوانٍ
+    useEffect(() => {
+        if (playing) {
+            saveTimer.current = setInterval(() => {
+                if (videoRef.current) saveProgress(videoRef.current.currentTime);
+            }, 10000);
+        } else {
+            if (videoRef.current) saveProgress(videoRef.current.currentTime);
+            clearInterval(saveTimer.current);
+        }
+        return () => clearInterval(saveTimer.current);
+    }, [playing, saveProgress]);
 
     /* ---- تلاشي أدوات التحكم ---- */
+
     const resetHideTimer = useCallback(() => {
         setShowControls(true);
         clearTimeout(hideTimer.current);
@@ -119,9 +195,39 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
             setCurrentTime(v.currentTime);
             if (v.buffered.length > 0)
                 setBuffered(v.buffered.end(v.buffered.length - 1));
-            // skip intro: يظهر فوراً لو introEnd > 0 ولم يُغلق بعد، يختفي تلقائياً بعد تجاوز الوقت
-            if (introEnd > 0 && v.currentTime >= introEnd) {
-                setShowSkipIntro(false);
+            if (introEnd > 0 && v.currentTime >= introEnd) setShowSkipIntro(false);
+
+            // منطق الحلقة القادمة: عرض overlay قبل 10 ثوانٍ من النهاية
+            if (mediaType === 'series' && nextEpisode && duration > 30) {
+                const timeLeft = duration - v.currentTime;
+                if (timeLeft <= 10 && !showNextEpisodeOverlay && !v.paused) {
+                    setShowNextEpisodeOverlay(true);
+                    clearInterval(countdownTimer.current);
+                    setCountdown(10);
+                    countdownTimer.current = setInterval(() => {
+                        setCountdown(prev => {
+                            if (prev <= 1) {
+                                clearInterval(countdownTimer.current);
+                                setShowEndOverlay(true);
+                                setShowNextEpisodeOverlay(false);
+                                return 0;
+                            }
+                            return prev - 1;
+                        });
+                    }, 1000);
+                } else if (timeLeft > 15 && showNextEpisodeOverlay) {
+                    setShowNextEpisodeOverlay(false);
+                    clearInterval(countdownTimer.current);
+                    setCountdown(10);
+                }
+            }
+        };
+        const onEnded = () => {
+            if (mediaType === 'series' && nextEpisode) {
+                setShowEndOverlay(true);
+                setShowNextEpisodeOverlay(false);
+                setShowControls(false);
+                clearInterval(countdownTimer.current);
             }
         };
         const onLoaded = () => {
@@ -143,6 +249,7 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
         v.addEventListener('playing', onPlaying);
         v.addEventListener('play', onPlay);
         v.addEventListener('pause', onPause);
+        v.addEventListener('ended', onEnded);
         return () => {
             v.removeEventListener('timeupdate', onTime);
             v.removeEventListener('loadedmetadata', onLoaded);
@@ -150,8 +257,10 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
             v.removeEventListener('playing', onPlaying);
             v.removeEventListener('play', onPlay);
             v.removeEventListener('pause', onPause);
+            v.removeEventListener('ended', onEnded);
+            clearInterval(countdownTimer.current);
         };
-    }, [introEnd]);
+    }, [introEnd, nextEpisode, mediaType, duration, showNextEpisodeOverlay]);
 
     // إعادة ضبط زر تخطي المقدمة عند تغيير الفيديو
     useEffect(() => {
@@ -409,7 +518,18 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
                 onClick={(e) => e.stopPropagation()}
                 onError={handleProxyError}
                 style={{ background: '#000' }}
-            />
+            >
+                {subtitles.map((sub, idx) => (
+                    <track
+                        key={idx}
+                        kind="subtitles"
+                        label={sub.label}
+                        srcLang={sub.lang}
+                        src={sub.src}
+                        default={activeSubtitle === idx}
+                    />
+                ))}
+            </video>
 
             {/* طبقات اللمس (mobile double-tap) */}
             <div className="absolute inset-0 flex pointer-events-none">
@@ -441,7 +561,7 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
                 </div>
             )}
 
-            {/* زر تخطي المقدمة - تصميم شاهد */}
+            {/* زر تخطي المقدمة */}
             <AnimatePresence>
                 {showSkipIntro && (
                     <motion.button
@@ -452,14 +572,9 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
                         onClick={(e) => { e.stopPropagation(); skipIntro(); }}
                         className="absolute bottom-20 left-4 z-30 flex items-center gap-1.5 font-arabic font-bold"
                         style={{
-                            fontSize: '12px',
-                            padding: '6px 14px',
-                            borderRadius: '6px',
-                            background: 'rgba(20,20,30,0.82)',
-                            color: '#fff',
-                            border: '1px solid rgba(255,255,255,0.25)',
-                            backdropFilter: 'blur(6px)',
-                            letterSpacing: '0.01em',
+                            fontSize: '12px', padding: '6px 14px', borderRadius: '6px',
+                            background: 'rgba(20,20,30,0.82)', color: '#fff',
+                            border: '1px solid rgba(255,255,255,0.25)', backdropFilter: 'blur(6px)',
                         }}
                     >
                         <svg viewBox="0 0 24 24" fill="currentColor" style={{ width: 13, height: 13, opacity: 0.9 }}>
@@ -467,6 +582,68 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
                         </svg>
                         تخطي المقدمة
                     </motion.button>
+                )}
+            </AnimatePresence>
+
+            {/* overlay الحلقة القادمة (10 ثوانٍ قبل النهاية) */}
+            <AnimatePresence>
+                {showNextEpisodeOverlay && nextEpisode && !showEndOverlay && (
+                    <motion.div
+                        initial={{ opacity: 0, x: 50 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 50 }}
+                        className="absolute bottom-24 right-6 z-40 bg-black/80 backdrop-blur-xl border border-white/10 p-5 rounded-2xl w-72 shadow-2xl pointer-events-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <p className="text-yellow-400 text-[10px] font-bold font-arabic mb-2">الحلقة القادمة</p>
+                        <p className="text-white text-xs font-bold font-arabic mb-4 line-clamp-1">{nextEpisode.name || `الحلقة ${nextEpisode.episodeNumber}`}</p>
+                        <div className="flex flex-col gap-2">
+                            <button
+                                onClick={() => onNavigateToEpisode(nextEpisode)}
+                                className="w-full py-2 bg-yellow-400 text-black font-bold font-arabic rounded-lg text-xs"
+                            >
+                                تشغيل الآن ({countdown})
+                            </button>
+                            <button
+                                onClick={() => { setShowNextEpisodeOverlay(false); clearInterval(countdownTimer.current); }}
+                                className="w-full py-2 bg-white/5 text-white/60 font-bold font-arabic rounded-lg text-xs"
+                            >
+                                إلغاء
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* شاشة النهاية */}
+            <AnimatePresence>
+                {showEndOverlay && nextEpisode && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 z-[100] bg-black/85 backdrop-blur-xl flex items-center justify-center p-6 text-center pointer-events-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="max-w-sm w-full space-y-6">
+                            <h2 className="text-white text-3xl font-black font-arabic">ما هي خطتك التالية؟</h2>
+                            <p className="text-white/60 font-arabic">{nextEpisode.name || `الحلقة ${nextEpisode.episodeNumber}`}</p>
+                            <div className="flex flex-col gap-3">
+                                <button
+                                    onClick={() => onNavigateToEpisode(nextEpisode)}
+                                    className="w-full py-4 bg-yellow-400 text-black font-black font-arabic rounded-2xl text-base"
+                                >
+                                    تشغيل الحلقة القادمة
+                                </button>
+                                <button
+                                    onClick={() => setShowEndOverlay(false)}
+                                    className="w-full py-3 text-white/40 font-bold font-arabic text-sm"
+                                >
+                                    إغلاق المشغل
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
                 )}
             </AnimatePresence>
 
@@ -520,7 +697,32 @@ const VideoPlayer = ({ src, title, subtitle, introEnd = 0, onNext, onPrev, hasNe
                                                     </div>
                                                 </div>
 
+                                                {/* Subtitles Section */}
+                                                {subtitles.length > 0 && (
+                                                    <div className="border-b border-white/5 pb-2">
+                                                        <p className="text-gray-400 text-[10px] px-4 pt-3 pb-1 font-arabic font-bold uppercase tracking-wider">الترجمة</p>
+                                                        <div className="flex flex-col gap-1 px-2">
+                                                            <button
+                                                                onClick={() => setActiveSubtitle(-1)}
+                                                                className={`px-4 py-2 rounded-lg text-right text-xs font-arabic transition ${activeSubtitle === -1 ? 'bg-white/10 text-yellow-500 font-bold' : 'text-gray-300 hover:bg-white/5'}`}
+                                                            >
+                                                                إيقاف
+                                                            </button>
+                                                            {subtitles.map((sub, idx) => (
+                                                                <button
+                                                                    key={idx}
+                                                                    onClick={() => setActiveSubtitle(idx)}
+                                                                    className={`px-4 py-2 rounded-lg text-right text-xs font-arabic transition ${activeSubtitle === idx ? 'bg-white/10 text-yellow-500 font-bold' : 'text-gray-300 hover:bg-white/5'}`}
+                                                                >
+                                                                    {sub.label}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
                                                 {/* Volume Boost Section */}
+
                                                 <div className="pb-3">
                                                     <p className="text-cyan-400 text-[10px] px-4 pt-3 pb-1 font-arabic font-bold uppercase tracking-wider flex items-center gap-2">
                                                         <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />

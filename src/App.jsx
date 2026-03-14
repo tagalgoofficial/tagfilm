@@ -9,13 +9,27 @@ import MovieDetails from './pages/MovieDetails';
 import CategoryPage from './pages/CategoryPage';
 import SeriesPage from './pages/SeriesPage';
 import Favorites from './pages/Favorites';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import ProfileSetup from './pages/ProfileSetup';
+import AccountManagement from './pages/AccountManagement';
+import ProfilesManagement from './pages/ProfilesManagement';
+import Profile from './pages/Profile';
+import ContinueWatching from './components/ContinueWatching';
+import Recommendations from './components/Recommendations';
+import Search from './pages/Search';
+import ComingSoon from './components/ComingSoon';
+import SplashScreen from './components/SplashScreen';
 import InstallPWA from './components/InstallPWA';
+import { SectionSkeleton } from './components/Skeleton';
 import { FavoritesProvider } from './context/FavoritesContext';
+import { AuthProvider } from './context/AuthContext';
 import AdminLayout from './admin/AdminLayout';
 import Dashboard from './admin/pages/Dashboard';
 import MoviesManager from './admin/pages/MoviesManager';
 import SeriesManager from './admin/pages/SeriesManager';
 import CategoriesManager from './admin/pages/CategoriesManager';
+import MovieCategoriesManager from './admin/pages/MovieCategoriesManager';
 import SectionsManager from './admin/pages/SectionsManager';
 import FeaturedManager from './admin/pages/FeaturedManager';
 import { getSections, initDefaultSections } from './firebase/sectionsService';
@@ -56,15 +70,16 @@ function HomePage() {
         <HeroBanner items={featured} />
       )}
 
-      {/* Navigation Categories */}
-      <div className="relative z-40" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <Navigation />
-      </div>
-
       {/* Sections Carousels */}
       <div className="space-y-24 py-20 pb-40">
+        <ContinueWatching />
+        <Recommendations />
+        <ComingSoon />
         {loading ? (
-          [1, 2, 3, 4].map(i => <Carousel key={i} title="" movies={[]} loading={true} />)
+          <>
+            <SectionSkeleton />
+            <SectionSkeleton />
+          </>
         ) : sections.length > 0 ? (
           sections.map(section => (
             <Carousel
@@ -99,32 +114,50 @@ function HomePage() {
 }
 
 function App() {
-  return (
-    <FavoritesProvider>
-      <div className="min-h-screen flex flex-col pb-24 lg:pb-0 bg-[#050514] text-white overflow-x-hidden" style={{ fontFamily: 'Inter, Tajawal, sans-serif' }} dir="rtl">
-        <div className="flex-grow w-full max-w-full">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/movie/:id" element={<MovieDetails />} />
-            <Route path="/series/:id" element={<SeriesPage />} />
-            <Route path="/category/:categoryId" element={<CategoryPage />} />
-            <Route path="/category/:categoryId/:subcategory" element={<CategoryPage />} />
-            <Route path="/favorites" element={<Favorites />} />
+  const [isSplashFinished, setIsSplashFinished] = useState(false);
 
-            <Route path="/admin" element={<AdminLayout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="movies" element={<MoviesManager />} />
-              <Route path="series" element={<SeriesManager />} />
-              <Route path="categories" element={<CategoriesManager />} />
-              <Route path="sections" element={<SectionsManager />} />
-              <Route path="featured" element={<FeaturedManager />} />
-            </Route>
-          </Routes>
+  return (
+    <AuthProvider>
+      <FavoritesProvider>
+        {!isSplashFinished && <SplashScreen onFinish={() => setIsSplashFinished(true)} />}
+
+        <div
+          className={`min-h-screen flex flex-col pb-24 lg:pb-0 bg-[#050514] text-white overflow-x-hidden transition-opacity duration-1000 ${isSplashFinished ? 'opacity-100' : 'opacity-0'}`}
+          style={{ fontFamily: 'Inter, Tajawal, sans-serif' }}
+          dir="rtl"
+        >
+          <div className="flex-grow w-full max-w-full">
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/movie/:id" element={<MovieDetails />} />
+              <Route path="/series/:id" element={<SeriesPage />} />
+              <Route path="/category/:categoryId" element={<CategoryPage />} />
+              <Route path="/category/:categoryId/:subcategory" element={<CategoryPage />} />
+              <Route path="/favorites" element={<Favorites />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/profile-setup" element={<ProfileSetup />} />
+              <Route path="/account" element={<AccountManagement />} />
+              <Route path="/profiles" element={<ProfilesManagement />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/search" element={<Search />} />
+
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="movies" element={<MoviesManager />} />
+                <Route path="series" element={<SeriesManager />} />
+                <Route path="categories" element={<CategoriesManager />} />
+                <Route path="movie-categories" element={<MovieCategoriesManager />} />
+                <Route path="sections" element={<SectionsManager />} />
+                <Route path="featured" element={<FeaturedManager />} />
+              </Route>
+            </Routes>
+          </div>
+          <MobileNav />
+          <InstallPWA />
         </div>
-        <MobileNav />
-        <InstallPWA />
-      </div>
-    </FavoritesProvider>
+      </FavoritesProvider>
+    </AuthProvider>
   );
 }
 
