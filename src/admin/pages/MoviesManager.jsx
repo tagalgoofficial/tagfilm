@@ -10,6 +10,8 @@ import { getCategories, initDefaultCategories } from '../../firebase/categoriesS
 import { getMovieFolders, addMovieFolder, updateMovieFolder, deleteMovieFolder } from '../../firebase/movieFoldersService';
 import TMDBSearchModal from '../components/TMDBSearchModal';
 import BulkUrlReplacerModal from '../components/BulkUrlReplacerModal';
+import TagAlgoPickerModal from '../components/TagAlgoPickerModal';
+import { searchMovies, getMovieDetails } from '../../services/tmdbService';
 import { MdFolder, MdFolderOpen, MdSettings } from 'react-icons/md';
 
 const QUALITIES = ['WEB-DL', 'BluRay', 'HDRip', '4K', 'CAM', 'HD', 'FHD', 'SCR', '720p', '1080p'];
@@ -94,6 +96,8 @@ const Field = ({ label, value, onChange, placeholder, icon: Icon }) => (
 const MovieModal = ({ isOpen, onClose, onSave, editData, categories, folders }) => {
     const [form, setForm] = useState(editData || emptyMovieForm);
     const [tmdbOpen, setTmdbOpen] = useState(false);
+    const [tmdbQuery, setTmdbQuery] = useState('');
+    const [tagAlgoOpen, setTagAlgoOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [tab, setTab] = useState('basic');
 
@@ -105,6 +109,15 @@ const MovieModal = ({ isOpen, onClose, onSave, editData, categories, folders }) 
     const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
     const handleTMDBSelect = (data) => {
+        // محاولة تخمين التصنيف بناءً على الأنواع (Genres)
+        let guessedCategory = form.category;
+        if (!guessedCategory && data.genres && data.genres.length > 0) {
+            const match = categories.find(c =>
+                data.genres.some(g => c.label.includes(g) || g.includes(c.label))
+            );
+            if (match) guessedCategory = match.id;
+        }
+
         setForm(prev => ({
             ...prev,
             title: data.titleAr || data.title,
@@ -120,14 +133,29 @@ const MovieModal = ({ isOpen, onClose, onSave, editData, categories, folders }) 
             cast: data.cast,
             logo: data.logo,
             tmdbId: data.tmdbId,
+            category: guessedCategory,
         }));
     };
 
+    const autoFetchTMDB = async (name) => {
+        if (!name) return;
+        try {
+            const results = await searchMovies(name);
+            if (results && results.length > 0) {
+                const details = await getMovieDetails(results[0].id);
+                handleTMDBSelect(details);
+            }
+        } catch (err) {
+            console.error("Auto TMDB fetch failed:", err);
+        }
+    };
+
     const handleSave = async () => {
-        if (!form.title || !form.poster) return alert('العنوان والصورة مطلوبان');
+        if (!form.title && !form.poster) return alert('العنوان والصورة مطلوبان');
         setSaving(true);
         await onSave(form);
         setSaving(false);
+        setTmdbQuery(''); // Reset query
         onClose();
     };
 
@@ -173,6 +201,13 @@ const MovieModal = ({ isOpen, onClose, onSave, editData, categories, folders }) 
                                 style={{ background: 'linear-gradient(135deg, #ffd700, #ff8c00)' }}
                             >
                                 <MdSearch className="text-base" /> جلب من TMDB
+                            </button>
+                            <button
+                                onClick={() => setTagAlgoOpen(true)}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-arabic font-semibold text-white border border-green-400/40 hover:border-green-400/80 transition-all"
+                                style={{ background: 'linear-gradient(135deg, rgba(0,255,128,0.1), rgba(0,179,89,0.1))' }}
+                            >
+                                <span className="text-green-400 text-base">🌐</span> TagAlgo
                             </button>
                             <button onClick={onClose} className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition">
                                 <MdClose className="text-xl" />
@@ -313,13 +348,22 @@ const MovieModal = ({ isOpen, onClose, onSave, editData, categories, folders }) 
                                         <p className="text-white font-black font-arabic">سيرفرات المشاهدة</p>
                                         <p className="text-gray-400 text-xs font-arabic mt-0.5">أضف سيرفرات متعددة بجودات مختلفة</p>
                                     </div>
-                                    <button
-                                        onClick={() => set('servers', [...(form.servers || []), { ...emptyServer, name: `سيرفر ${(form.servers?.length || 0) + 1}` }])}
-                                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-black font-bold text-sm"
-                                        style={{ background: 'linear-gradient(135deg, #ffd700, #ff8c00)' }}
-                                    >
-                                        <MdAdd /> إضافة سيرفر
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => setTagAlgoOpen(true)}
+                                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white font-bold text-sm border border-green-400/40 hover:border-green-400/80 transition-all"
+                                            style={{ background: 'linear-gradient(135deg, rgba(0,255,128,0.15), rgba(0,179,89,0.15))' }}
+                                        >
+                                            <span className="text-green-400 text-base">🌐</span> TagAlgo
+                                        </button>
+                                        <button
+                                            onClick={() => set('servers', [...(form.servers || []), { ...emptyServer, name: `سيرفر ${(form.servers?.length || 0) + 1}` }])}
+                                            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-black font-bold text-sm"
+                                            style={{ background: 'linear-gradient(135deg, #ffd700, #ff8c00)' }}
+                                        >
+                                            <MdAdd /> إضافة سيرفر
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {(!form.servers || form.servers.length === 0) ? (
@@ -432,9 +476,25 @@ const MovieModal = ({ isOpen, onClose, onSave, editData, categories, folders }) 
 
                 <TMDBSearchModal
                     isOpen={tmdbOpen}
-                    onClose={() => setTmdbOpen(false)}
+                    onClose={() => { setTmdbOpen(false); setTmdbQuery(''); }}
                     onSelect={handleTMDBSelect}
+                    initialQuery={tmdbQuery}
                     type="movie"
+                />
+                <TagAlgoPickerModal
+                    isOpen={tagAlgoOpen}
+                    onClose={() => setTagAlgoOpen(false)}
+                    onSelect={(srv) => {
+                        set('servers', [...(form.servers || []), srv]);
+                        if (srv.videoName) {
+                            const cleanName = srv.videoName;
+                            if (!form.titleAr && !form.title) {
+                                set('titleAr', cleanName);
+                                set('title', cleanName);
+                                autoFetchTMDB(cleanName); // جلب تلقائي بالكامل
+                            }
+                        }
+                    }}
                 />
             </motion.div>
         </AnimatePresence>
@@ -776,6 +836,69 @@ const MoviesManager = () => {
         await load();
     };
 
+    const [selectedItems, setSelectedItems] = useState([]);
+
+    const handleSelectAll = (e) => {
+        if (e.target.checked) setSelectedItems(filtered.map(m => m.id));
+        else setSelectedItems([]);
+    };
+
+    const handleCheckboxChange = (id) => {
+        if (selectedItems.includes(id)) setSelectedItems(selectedItems.filter(i => i !== id));
+        else setSelectedItems([...selectedItems, id]);
+    };
+
+    const handleBulkDelete = async () => {
+        if (!confirm(`هل أنت متأكد من حذف ${selectedItems.length} فيلم؟`)) return;
+        setLoading(true);
+        for (const id of selectedItems) await deleteMovie(id);
+        setSelectedItems([]);
+        await load();
+    };
+
+    const handleExportJson = () => {
+        const dataToExport = selectedItems.length > 0 ? movies.filter(m => selectedItems.includes(m.id)) : movies;
+        const data = JSON.stringify(dataToExport, null, 2);
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `movies_backup_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+    };
+
+    const handleImportJson = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const data = JSON.parse(event.target.result);
+                if (!Array.isArray(data)) throw new Error('الملف يجب أن يحتوي على مصفوفة أفلام');
+                if (!confirm(`سيتم استيراد ${data.length} فيلم، هل أنت متأكد؟`)) return;
+                setLoading(true);
+                let importedCount = 0;
+                for (const movie of data) {
+                    const { id, createdAt, updatedAt, ...movieData } = movie;
+                    if (!movieData.title) continue;
+                    // تحقق مبدئي لمنع التكرار التام
+                    const exists = movies.some(m => m.title === movieData.title && m.year === movieData.year);
+                    if (!exists) {
+                        await addMovie(movieData);
+                        importedCount++;
+                    }
+                }
+                alert(`تم استيراد ${importedCount} فيلم بنجاح (تم تجاهل المتكرر).`);
+                await load();
+            } catch (err) {
+                alert('خطأ في الاستيراد: ' + err.message);
+                setLoading(false);
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = null; // reset input
+    };
+
     const filtered = movies.filter(m => {
         const matchesSearch = m.title?.toLowerCase().includes(search.toLowerCase()) ||
             m.titleAr?.includes(search) ||
@@ -794,7 +917,28 @@ const MoviesManager = () => {
                     <h1 className="text-2xl font-black text-white font-arabic">إدارة الأفلام</h1>
                     <p className="text-gray-400 text-sm font-arabic">{movies.length} فيلم محفوظ</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3 justify-end">
+                    {selectedItems.length > 0 && (
+                        <button
+                            onClick={handleBulkDelete}
+                            className="flex items-center gap-2 px-4 py-3 rounded-xl text-white font-bold text-sm bg-red-500/20 hover:bg-red-500 transition-all border border-red-500/20"
+                        >
+                            <MdDelete className="text-lg" /> حذف {selectedItems.length}
+                        </button>
+                    )}
+                    <input type="file" accept=".json" id="import_json" className="hidden" onChange={handleImportJson} />
+                    <button
+                        onClick={() => document.getElementById('import_json').click()}
+                        className="flex items-center gap-2 px-4 py-3 rounded-xl text-white font-bold text-xs sm:text-sm bg-blue-500/20 hover:bg-blue-500/40 transition-all border border-blue-500/20"
+                    >
+                        ⬇️ استيراد
+                    </button>
+                    <button
+                        onClick={handleExportJson}
+                        className="flex items-center gap-2 px-4 py-3 rounded-xl text-white font-bold text-xs sm:text-sm bg-emerald-500/20 hover:bg-emerald-500/40 transition-all border border-emerald-500/20"
+                    >
+                        ⬆️ تصدير
+                    </button>
                     <button
                         onClick={() => setIsUrlModalOpen(true)}
                         className="flex items-center gap-2 px-5 py-3 rounded-xl text-white font-bold text-sm bg-white/10 hover:bg-white/20 transition-all border border-white/10"
@@ -803,7 +947,7 @@ const MoviesManager = () => {
                     </button>
                     <button
                         onClick={() => { setEditMovie(null); setModalOpen(true); }}
-                        className="flex items-center gap-2 px-5 py-3 rounded-xl text-black font-bold text-sm"
+                        className="flex items-center gap-2 px-5 py-3 rounded-xl text-black font-bold text-sm flex-shrink-0"
                         style={{ background: 'linear-gradient(135deg, #ffd700, #ff8c00)' }}
                     >
                         <MdAdd className="text-lg" /> إضافة فيلم
@@ -879,6 +1023,21 @@ const MoviesManager = () => {
                 </div>
             ) : (
                 <div className="space-y-3">
+                    {/* Select All Row */}
+                    {filtered.length > 0 && (
+                        <div className="flex items-center gap-3 px-4 py-3 bg-white/5 rounded-2xl border border-white/10 mb-4 cursor-pointer" onClick={(e) => { e.stopPropagation(); document.getElementById('selectAll').click() }}>
+                            <input
+                                id="selectAll"
+                                type="checkbox"
+                                className="w-5 h-5 accent-yellow-400 cursor-pointer"
+                                checked={filtered.length > 0 && selectedItems.length === filtered.length}
+                                onChange={handleSelectAll}
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                            <label htmlFor="selectAll" className="text-white font-arabic text-sm cursor-pointer select-none">تحديد الكل ({filtered.length})</label>
+                            <span className="text-gray-500 text-xs mr-auto">{selectedItems.length} محدد</span>
+                        </div>
+                    )}
                     {filtered.map((movie, i) => (
                         <motion.div
                             key={movie.id}
@@ -894,6 +1053,14 @@ const MoviesManager = () => {
                                 className="flex items-center gap-4 p-4 hover:bg-white/[0.05] transition-colors cursor-pointer"
                                 style={{ background: 'rgba(255,255,255,0.03)' }}
                             >
+                                <div className="flex flex-col items-center justify-center pl-2" onClick={(e) => e.stopPropagation()}>
+                                    <input
+                                        type="checkbox"
+                                        className="w-5 h-5 accent-yellow-400 cursor-pointer"
+                                        checked={selectedItems.includes(movie.id)}
+                                        onChange={() => handleCheckboxChange(movie.id)}
+                                    />
+                                </div>
                                 <div className="w-14 h-20 rounded-xl overflow-hidden flex-shrink-0 border border-white/5 shadow-2xl">
                                     <img
                                         src={movie.poster || 'https://via.placeholder.com/60x80?text=N/A'}

@@ -9,6 +9,7 @@ import { MdMovieFilter, MdLanguage, MdCalendarToday } from 'react-icons/md';
 import Header from '../components/Header';
 import VideoPlayer from '../components/VideoPlayer';
 import { getMovie } from '../firebase/moviesService';
+import { getCategories } from '../firebase/categoriesService';
 import Skeleton from '../components/Skeleton';
 
 const MovieDetails = () => {
@@ -20,6 +21,8 @@ const MovieDetails = () => {
     const [playerMode, setPlayerMode] = useState(false);
     const [activeServer, setActiveServer] = useState(0);
     const [selectedPart, setSelectedPart] = useState(null); // null means main movie
+    const [resolvedUrl, setResolvedUrl] = useState('');
+    const [fetchingStream, setFetchingStream] = useState(false);
     const { toggleFavorite, isFavorite } = useFavorites();
     const isFav = isFavorite(id);
 
@@ -48,6 +51,40 @@ const MovieDetails = () => {
         setActiveServer(0);
         window.scrollTo(0, 0);
     }, [id]);
+
+    const currentMovie = selectedPart || movie;
+    const servers = currentMovie?.servers || [];
+    const currentLink = servers[activeServer]?.watchLink || currentMovie?.watchLink || '';
+
+    // Resolve TagAlgo URLs
+    useEffect(() => {
+        const resolveUrl = async () => {
+            if (!currentLink) {
+                setResolvedUrl('');
+                return;
+            }
+
+            if (currentLink.includes('api.tagalgo.com/api/play/')) {
+                setFetchingStream(true);
+                try {
+                    // استخدام fetch مع credentials أو axios إذا كان متاحاً
+                    const response = await fetch(currentLink, {
+                        credentials: 'include' // مهم لـ CORS مع TagAlgo
+                    });
+                    if (!response.ok) throw new Error('فشل جلب رابط البث');
+                    const data = await response.json();
+                    setResolvedUrl(data.secureUrl);
+                } catch (err) {
+                    console.error("Error fetching secure URL:", err);
+                    setResolvedUrl(currentLink); // Fallback
+                }
+                setFetchingStream(false);
+            } else {
+                setResolvedUrl(currentLink);
+            }
+        };
+        resolveUrl();
+    }, [currentLink]);
 
     if (loading) {
         return (
@@ -85,12 +122,8 @@ const MovieDetails = () => {
         );
     }
 
-    const currentMovie = selectedPart || movie;
-    const servers = currentMovie.servers || [];
-    const currentLink = servers[activeServer]?.watchLink || currentMovie.watchLink || '';
-
     const categoryLabel = categories.find(c => c.id === movie.category)?.label || movie.category;
-    const subcategoryLabel = movie.subcategory; // Assuming subcategory is stored as name or we keep it as is for now
+    const subcategoryLabel = movie.subcategory;
 
     return (
         <div className="min-h-screen bg-site text-main transition-colors duration-500" dir="rtl" lang="ar">
@@ -107,26 +140,32 @@ const MovieDetails = () => {
                     >
                         <div className="flex items-center justify-between px-6 py-3 bg-[#0a0a1a] border-b border-white/5">
                             <div className="flex items-center gap-4">
-                                <button onClick={() => setPlayerMode(false)} className="p-2 hover:bg-white/10 rounded-full transition">
-                                    <IoMdArrowBack className="text-2xl transform rotate-180" />
+                                <button onClick={() => setPlayerMode(false)} className="p-2 hover:bg-white/10 rounded-full transition text-gray-400 hover:text-white">
+                                    <IoMdArrowBack className="text-2xl" />
                                 </button>
                                 <div>
-                                    <h2 className="text-sm font-bold font-arabic">
-                                        {movie.titleAr || movie.title}
-                                        {selectedPart && <span className="text-yellow-400 mr-2">- {selectedPart.name || `الجزء ${selectedPart.partNumber}`}</span>}
-                                    </h2>
-                                    <p className="text-xs text-yellow-400 font-arabic">جارٍ التشغيل الآن...</p>
+                                    <h2 className="text-sm font-bold font-arabic">{movie.titleAr || movie.title}</h2>
+                                    {selectedPart && <p className="text-xs text-yellow-400 font-arabic">{selectedPart.title}</p>}
                                 </div>
                             </div>
                         </div>
-                        <VideoPlayer
-                            src={currentLink}
-                            poster={movie.backdrop || movie.poster}
-                            title={movie.titleAr || movie.title}
-                            introEnd={Number(movie.introDuration || 0)}
-                            mediaId={id}
-                            mediaType="movie"
-                        />
+
+                        {fetchingStream ? (
+                            <div className="aspect-video bg-black flex flex-col items-center justify-center space-y-4">
+                                <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+                                <p className="text-white font-arabic text-sm">جاري تجهيز البث الآمن...</p>
+                            </div>
+                        ) : (
+                            <VideoPlayer
+                                key={resolvedUrl}
+                                src={resolvedUrl}
+                                poster={movie.backdrop || movie.poster}
+                                title={movie.titleAr || movie.title}
+                                introEnd={Number(movie.introDuration || 0)}
+                                mediaId={id}
+                                mediaType="movie"
+                            />
+                        )}
                         {/* Server Selection below player */}
                         {servers.length > 1 && (
                             <div className="p-4 flex flex-wrap gap-2 justify-center bg-[#0a0a1a]">
@@ -206,6 +245,11 @@ const MovieDetails = () => {
                                         {movie.quality}
                                     </span>
                                 )}
+                                {movie.subcategories && movie.subcategories.length > 0 && (
+                                    <span className="bg-white/10 px-2 sm:px-3 py-1 rounded-lg text-[10px] sm:text-xs border border-white/10 font-black truncate max-w-[200px] font-arabic text-cyan-300">
+                                        {movie.subcategories.join('، ')}
+                                    </span>
+                                )}
                             </div>
 
                             {/* Overview */}
@@ -227,6 +271,25 @@ const MovieDetails = () => {
                                     <AiFillPlayCircle className="text-2xl sm:text-2xl" />
                                     مشاهدة الآن
                                 </motion.button>
+
+                                {(() => {
+                                    const dlServer = movie.servers?.find(s => s.downloadLink) || movie.servers?.[0];
+                                    const dlLink = dlServer?.downloadLink || movie.downloadLink;
+                                    if (!dlLink) return null;
+                                    return (
+                                        <motion.a
+                                            href={dlLink}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            whileHover={{ scale: 1.05, boxShadow: '0 0 40px rgba(0, 212, 255, 0.3)' }}
+                                            whileTap={{ scale: 0.95 }}
+                                            className="flex items-center justify-center gap-3 sm:gap-4 px-8 py-4 sm:px-10 sm:py-5 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-black rounded-xl sm:rounded-2xl text-lg sm:text-xl shadow-2xl transition-all font-arabic"
+                                        >
+                                            <BiDownload className="text-2xl sm:text-2xl" />
+                                            تحميل
+                                        </motion.a>
+                                    );
+                                })()}
 
                                 <motion.button
                                     whileHover={{ scale: 1.05, background: isFav ? 'rgba(255,215,0,0.15)' : 'rgba(255,255,255,0.15)' }}

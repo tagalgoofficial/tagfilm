@@ -4,6 +4,7 @@ import {
     getDocs, getDoc, query, orderBy, serverTimestamp,
     setDoc
 } from 'firebase/firestore';
+import { slugify } from '../utils/slugify';
 
 const SERIES_COL = 'series';
 
@@ -22,13 +23,17 @@ export const getSeriesById = async (id) => {
 
 // إضافة مسلسل
 export const addSeries = async (seriesData) => {
-    const docRef = await addDoc(collection(db, SERIES_COL), {
+    const customId = slugify(seriesData.title || seriesData.titleAr);
+    const docRef = doc(db, SERIES_COL, customId);
+
+    await setDoc(docRef, {
         ...seriesData,
         seasons: [],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     });
-    return docRef.id;
+
+    return customId;
 };
 
 // تعديل مسلسل

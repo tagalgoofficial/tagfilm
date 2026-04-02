@@ -37,14 +37,24 @@ const FeaturedManager = () => {
         setSeries(s);
         const seriesCat = cats.find(c => c.icon === 'series');
         const seriesSubs = seriesCat?.subcategories?.map(s => ({ id: `series_${s.name}`, label: s.name })) || [];
+        const customSeriesCats = cats.filter(c => c.icon === 'series' && c.id !== seriesCat?.id).map(c => ({ id: c.id, label: c.label, icon: <MdCollections className="text-[12px]" /> }));
+
+        const movieCats = cats.filter(c => c.icon === 'movies').map(c => ({ id: c.id, label: c.label, icon: <MdMovieFilter className="text-[12px]" /> }));
+        const otherCats = cats.filter(c => c.icon !== 'movies' && c.icon !== 'series').map(c => ({
+            id: c.id,
+            label: c.label,
+            icon: c.icon === 'ramadan' ? <MdStar className="text-[12px]" /> :
+                c.icon === 'other' ? <MdAutoAwesome className="text-[12px]" /> : <MdCollections className="text-[12px]" />
+        }));
 
         setCategories([
-            { id: 'home', label: 'الرئيسية', icon: <MdDashboard /> },
-            { id: 'movies', label: 'الأفلام', icon: <MdMovieFilter /> },
-            { id: 'series', label: 'المسلسلات', icon: <MdCollections /> },
+            { id: 'home', label: 'الرئيسية (Home)', icon: <MdDashboard /> },
+            { id: 'movies', label: 'الأفلام (All Movies Hub)', icon: <MdMovieFilter /> },
+            { id: 'series', label: 'المسلسلات (All Series Hub)', icon: <MdCollections /> },
             ...seriesSubs.map(s => ({ ...s, icon: <MdCollections className="text-[10px]" /> })),
-            { id: 'ramadan', label: 'رمضان', icon: <MdStar /> },
-            { id: 'kids', label: 'أطفال', icon: <MdAutoAwesome /> },
+            ...customSeriesCats,
+            ...movieCats,
+            ...otherCats
         ]);
         setLoading(false);
     };
@@ -127,7 +137,7 @@ const FeaturedManager = () => {
     };
 
     return (
-        <div className="space-y-10 pb-20 select-none">
+        <div className="space-y-10 pb-20 select-none w-full max-w-full overflow-hidden min-w-0">
             {/* --- HERO HUB HEADER --- */}
             <div className="relative overflow-hidden rounded-3xl md:rounded-[2rem] p-6 md:p-8 text-white shadow-2xl"
                 style={{ background: 'linear-gradient(135deg, #0f0c29, #302b63, #24243e)' }}>
@@ -169,13 +179,13 @@ const FeaturedManager = () => {
             </div>
 
             {/* --- CATEGORY SELECTOR & STATS --- */}
-            <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between px-2">
-                <div className="flex items-center gap-3 overflow-x-auto pb-4 hide-scrollbar w-full lg:w-auto">
+            <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between px-2 w-full min-w-0">
+                <div className="flex items-center gap-3 overflow-x-auto pb-4 custom-scrollbar w-full lg:flex-1 min-w-0">
                     {categories.map(cat => (
                         <button
                             key={cat.id}
                             onClick={() => setActiveCategoryId(cat.id)}
-                            className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-arabic font-bold transition-all whitespace-nowrap border-2 ${activeCategoryId === cat.id
+                            className={`flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-arabic font-bold transition-all whitespace-nowrap border-2 flex-shrink-0 ${activeCategoryId === cat.id
                                 ? 'bg-yellow-400 text-black border-yellow-400 shadow-[0_0_20px_rgba(255,215,0,0.2)]'
                                 : 'bg-white/5 text-gray-400 border-white/5 hover:border-white/10 hover:bg-white/10'
                                 }`}

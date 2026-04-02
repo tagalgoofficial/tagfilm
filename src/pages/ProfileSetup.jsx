@@ -5,8 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import { getCategories } from '../firebase/categoriesService';
 import { getMovies } from '../firebase/moviesService';
 import { getSeries } from '../firebase/seriesService';
-import logoWebm from '../assets/logo.webm';
-import logo from '../assets/Logo.png';
+
+import logo from '../assets/logo.png';
 import { FiCheck } from 'react-icons/fi';
 
 const AVATAR_EMOJIS = ['🎬', '🎭', '🎥', '🌟', '🦁', '🐉', '🦋', '🌙', '⚡', '🔥', '❄️', '🌊', '🎮', '🎸', '🏆', '🦊', '🐺', '🌺', '🚀', '🎯', '👑', '💎', '🌈', '🦚', '🐬', '🦅', '🌸', '🍀', '⚽', '🎻'];

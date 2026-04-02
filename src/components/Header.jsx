@@ -3,8 +3,8 @@ import { motion } from 'framer-motion';
 import { FiSearch } from 'react-icons/fi';
 import { AiFillHeart } from 'react-icons/ai';
 import { Link, useNavigate } from 'react-router-dom';
-import logo from '../assets/Logo.png';
-import logoWebm from '../assets/logo.webm';
+import logo from '../assets/logo.png';
+
 import { useFavorites } from '../context/FavoritesContext';
 import { useAuth } from '../context/AuthContext';
 
@@ -45,16 +45,7 @@ const Header = () => {
                             whileTap={{ scale: 0.95 }}
                             className="flex items-center gap-2.5 flex-shrink-0"
                         >
-                            <video
-                                autoPlay
-                                loop
-                                muted
-                                playsInline
-                                className="h-[50px] sm:h-[70px] w-auto object-contain drop-shadow-[0_0_15px_rgba(255,215,0,0.4)]"
-                            >
-                                <source src={logoWebm} type="video/webm" />
-                                <img src={logo} alt="TagFilm Logo" className="h-[50px] sm:h-[70px] w-auto object-contain" />
-                            </video>
+                            <img src={logo} alt="TagFilm Logo" className="h-[50px] sm:h-[70px] w-auto object-contain drop-shadow-[0_0_15px_rgba(255,215,0,0.4)]" />
                         </motion.div>
                     </Link>
 
@@ -128,9 +119,9 @@ const Header = () => {
                     ) : (
                         <Link to="/login">
                             <motion.button
-                                whileHover={{ scale: 1.05 }}
+                                whileHover={{ scale: 1.05, backgroundColor: 'rgba(255, 215, 0, 0.1)' }}
                                 whileTap={{ scale: 0.95 }}
-                                className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-lg text-sm font-bold font-arabic transition-all shadow-lg shadow-blue-900/40"
+                                className="bg-transparent border-2 border-yellow-400 text-yellow-400 px-6 py-2 rounded-xl text-sm font-bold font-arabic transition-all shadow-[0_0_15px_rgba(255,215,0,0.2)] hover:shadow-[0_0_25px_rgba(255,215,0,0.4)]"
                             >
                                 دخول
                             </motion.button>

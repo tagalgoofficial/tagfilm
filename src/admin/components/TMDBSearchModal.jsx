@@ -1,21 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MdSearch, MdClose, MdStar, MdCheckCircle } from 'react-icons/md';
 import { searchMovies, searchSeries, getMovieDetails, getSeriesDetails } from '../../services/tmdbService';
 
-const TMDBSearchModal = ({ isOpen, onClose, onSelect, type = 'movie' }) => {
-    const [query, setQuery] = useState('');
+const TMDBSearchModal = ({ isOpen, onClose, onSelect, type = 'movie', initialQuery = '' }) => {
+    const [query, setQuery] = useState(initialQuery);
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(false);
     const [loadingDetail, setLoadingDetail] = useState(null);
     const [error, setError] = useState('');
 
-    const handleSearch = async () => {
-        if (!query.trim()) return;
+    const handleSearch = async (searchVal = query) => {
+        if (!searchVal.trim()) return;
         setLoading(true);
         setError('');
         try {
-            const data = type === 'movie' ? await searchMovies(query) : await searchSeries(query);
+            const data = type === 'movie' ? await searchMovies(searchVal) : await searchSeries(searchVal);
             setResults(data);
         } catch {
             setError('حدث خطأ أثناء البحث، تحقق من الاتصال');
@@ -23,6 +23,13 @@ const TMDBSearchModal = ({ isOpen, onClose, onSelect, type = 'movie' }) => {
             setLoading(false);
         }
     };
+
+    useEffect(() => {
+        if (isOpen && initialQuery) {
+            setQuery(initialQuery);
+            handleSearch(initialQuery);
+        }
+    }, [isOpen, initialQuery]);
 
     const handleSelect = async (item) => {
         setLoadingDetail(item.id);

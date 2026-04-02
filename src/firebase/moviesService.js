@@ -1,8 +1,10 @@
 import { db } from './config';
 import {
     collection, doc, addDoc, updateDoc, deleteDoc,
-    getDocs, getDoc, query, orderBy, serverTimestamp
+    getDocs, getDoc, query, orderBy, serverTimestamp,
+    setDoc
 } from 'firebase/firestore';
+import { slugify } from '../utils/slugify';
 
 const MOVIES_COL = 'movies';
 
@@ -22,12 +24,16 @@ export const getMovie = async (id) => {
 
 // إضافة فيلم
 export const addMovie = async (movieData) => {
-    const docRef = await addDoc(collection(db, MOVIES_COL), {
+    const customId = slugify(movieData.title || movieData.titleAr);
+    const docRef = doc(db, MOVIES_COL, customId);
+
+    await setDoc(docRef, {
         ...movieData,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
     });
-    return docRef.id;
+
+    return customId;
 };
 
 // تعديل فيلم

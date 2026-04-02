@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MdAdd, MdEdit, MdDelete, MdClose, MdCheck, MdCategory, MdExpandMore, MdExpandLess } from 'react-icons/md';
 import {
-    getCategories, addCategory, updateCategory, deleteCategory,
+    getCategories, addCategory, updateCategory, deleteCategory, changeCategoryId,
     addSubcategory, updateSubcategory, deleteSubcategory,
     initDefaultCategories
 } from '../../firebase/categoriesService';
@@ -17,7 +17,7 @@ const CategoriesManager = () => {
     // نموذج تصنيف رئيسي
     const [catModal, setCatModal] = useState(false);
     const [editCat, setEditCat] = useState(null);
-    const [catForm, setCatForm] = useState({ label: '', labelEn: '', icon: 'movies', order: 1 });
+    const [catForm, setCatForm] = useState({ id: '', label: '', labelEn: '', icon: 'movies', order: 1 });
 
     // نموذج تصنيف فرعي
     const [subModal, setSubModal] = useState(null); // { categoryId, editSub }
@@ -39,11 +39,23 @@ const CategoriesManager = () => {
 
     const handleSaveCat = async () => {
         if (!catForm.label) return alert('الاسم مطلوب');
-        if (editCat) { await updateCategory(editCat.id, catForm); }
-        else { await addCategory(catForm); }
-        setCatModal(false); setEditCat(null);
-        setCatForm({ label: '', labelEn: '', icon: 'movies', order: 1 });
-        await load();
+        try {
+            if (editCat) {
+                if (catForm.id && catForm.id.trim() !== '' && catForm.id !== editCat.id) {
+                    const newId = await changeCategoryId(editCat.id, catForm.id);
+                    await updateCategory(newId, { ...catForm, id: newId });
+                } else {
+                    await updateCategory(editCat.id, catForm);
+                }
+            } else {
+                await addCategory(catForm);
+            }
+            setCatModal(false); setEditCat(null);
+            setCatForm({ id: '', label: '', labelEn: '', icon: 'movies', order: categories.length + 1 });
+            await load();
+        } catch (e) {
+            alert(e.message || 'حدث خطأ');
+        }
     };
 
     const handleDeleteCat = async (id) => {
@@ -103,7 +115,7 @@ const CategoriesManager = () => {
                                         <p className="text-gray-400 text-xs">{cat.labelEn} • {cat.subcategories?.length || 0} تصنيفات فرعية</p>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <button onClick={(e) => { e.stopPropagation(); setEditCat(cat); setCatForm({ label: cat.label, labelEn: cat.labelEn, icon: cat.icon, order: cat.order }); setCatModal(true); }}
+                                        <button onClick={(e) => { e.stopPropagation(); setEditCat(cat); setCatForm({ id: cat.id || '', label: cat.label, labelEn: cat.labelEn, icon: cat.icon, order: cat.order }); setCatModal(true); }}
                                             className="p-2 rounded-xl text-yellow-400 hover:bg-yellow-400/10 border border-yellow-400/20 transition">
                                             <MdEdit className="text-sm" />
                                         </button>
@@ -182,6 +194,12 @@ const CategoriesManager = () => {
                                     <input value={catForm.labelEn} onChange={e => setCatForm(p => ({ ...p, labelEn: e.target.value }))}
                                         placeholder="e.g. Movies"
                                         className="w-full bg-white/5 border border-white/15 rounded-xl py-3 px-4 text-white text-sm focus:outline-none focus:border-purple-400/60 transition" />
+                                </div>
+                                <div>
+                                    <label className="text-gray-300 text-sm font-arabic mb-1 block text-right">الرابط المُخصص (URL ID) <span className="text-gray-500 text-xs">- اختياري، يُفضل بالإنجليزية</span></label>
+                                    <input value={catForm.id} onChange={e => setCatForm(p => ({ ...p, id: e.target.value }))}
+                                        placeholder="مثال: custom-category-url" dir="ltr"
+                                        className="w-full bg-white/5 border border-white/15 rounded-xl py-3 px-4 text-white text-sm focus:outline-none focus:border-purple-400/60 transition text-left" />
                                 </div>
                                 <div>
                                     <label className="text-gray-300 text-sm font-arabic mb-1 block">الترتيب</label>

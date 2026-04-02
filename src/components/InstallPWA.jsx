@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MdInstallMobile, MdClose, MdShare } from 'react-icons/md';
 import { AiOutlinePlusSquare } from 'react-icons/ai';
-import logo from '../assets/Logo.png';
+import logo from '../assets/logo.png';
 
 const InstallPWA = () => {
     const [installPrompt, setInstallPrompt] = useState(null);

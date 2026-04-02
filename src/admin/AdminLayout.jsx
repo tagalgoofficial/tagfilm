@@ -3,10 +3,10 @@ import { Link, useLocation, Outlet } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     MdDashboard, MdMovieFilter, MdLiveTv, MdCategory,
-    MdViewCarousel, MdMenu, MdClose, MdSearch, MdArrowBack, MdStar
+    MdViewCarousel, MdMenu, MdClose, MdSearch, MdArrowBack, MdStar, MdFlashOn
 } from 'react-icons/md';
 import { BiCameraMovie } from 'react-icons/bi';
-import logo from '../assets/Logo.png';
+import logo from '../assets/logo.png';
 
 const navItems = [
     { path: '/admin', label: 'لوحة التحكم', icon: MdDashboard, exact: true },
@@ -16,6 +16,7 @@ const navItems = [
     { path: '/admin/categories', label: 'إدارة التصنيفات', icon: MdCategory },
     { path: '/admin/sections', label: 'إدارة الأقسام', icon: MdViewCarousel },
     { path: '/admin/featured', label: 'الكافر المميز ⭐', icon: MdStar },
+    { path: '/admin/quick-add', label: 'إضافة فيلم سريعة ⚡', icon: MdFlashOn },
 ];
 
 const AdminLayout = () => {

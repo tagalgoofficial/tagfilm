@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MdAdd, MdEdit, MdDelete, MdClose, MdCheck, MdCategory, MdExpandMore, MdExpandLess } from 'react-icons/md';
 import { BiCameraMovie } from 'react-icons/bi';
 import {
-    getCategories, addCategory, updateCategory, deleteCategory,
+    getCategories, addCategory, updateCategory, deleteCategory, changeCategoryId,
     addSubcategory, updateSubcategory, deleteSubcategory,
     initDefaultCategories
 } from '../../firebase/categoriesService';
@@ -16,7 +16,7 @@ const MovieCategoriesManager = () => {
     // نموذج تصنيف رئيسي
     const [catModal, setCatModal] = useState(false);
     const [editCat, setEditCat] = useState(null);
-    const [catForm, setCatForm] = useState({ label: '', labelEn: '', icon: 'movies', order: 1 });
+    const [catForm, setCatForm] = useState({ id: '', label: '', labelEn: '', icon: 'movies', order: 1 });
 
     // نموذج تصنيف فرعي
     const [subModal, setSubModal] = useState(null); // { categoryId, editSub }
@@ -40,11 +40,23 @@ const MovieCategoriesManager = () => {
 
     const handleSaveCat = async () => {
         if (!catForm.label) return alert('الاسم مطلوب');
-        if (editCat) { await updateCategory(editCat.id, catForm); }
-        else { await addCategory(catForm); }
-        setCatModal(false); setEditCat(null);
-        setCatForm({ label: '', labelEn: '', icon: 'movies', order: categories.length + 1 });
-        await load();
+        try {
+            if (editCat) {
+                if (catForm.id && catForm.id.trim() !== '' && catForm.id !== editCat.id) {
+                    const newId = await changeCategoryId(editCat.id, catForm.id);
+                    await updateCategory(newId, { ...catForm, id: newId });
+                } else {
+                    await updateCategory(editCat.id, catForm);
+                }
+            } else {
+                await addCategory(catForm);
+            }
+            setCatModal(false); setEditCat(null);
+            setCatForm({ id: '', label: '', labelEn: '', icon: 'movies', order: categories.length + 1 });
+            await load();
+        } catch (e) {
+            alert(e.message || 'حدث خطأ');
+        }
     };
 
     const handleDeleteCat = async (id) => {
@@ -116,7 +128,7 @@ const MovieCategoriesManager = () => {
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-1">
-                                            <button onClick={() => { setEditCat(cat); setCatForm({ label: cat.label, labelEn: cat.labelEn, icon: cat.icon, order: cat.order }); setCatModal(true); }}
+                                            <button onClick={() => { setEditCat(cat); setCatForm({ id: cat.id || '', label: cat.label, labelEn: cat.labelEn, icon: cat.icon, order: cat.order }); setCatModal(true); }}
                                                 className="p-2 rounded-xl text-gray-400 hover:text-yellow-400 hover:bg-yellow-400/10 transition">
                                                 <MdEdit />
                                             </button>
@@ -185,6 +197,12 @@ const MovieCategoriesManager = () => {
                                     <input value={catForm.labelEn} onChange={e => setCatForm(p => ({ ...p, labelEn: e.target.value }))}
                                         placeholder="e.g. Horror Movies"
                                         className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-5 text-white text-sm focus:outline-none focus:border-yellow-400/50 transition" />
+                                </div>
+                                <div>
+                                    <label className="text-gray-400 text-xs font-arabic mb-2 block mr-1 text-right">الرابط المُخصص (URL ID) <span className="text-gray-500 text-[10px]">- اختياري</span></label>
+                                    <input value={catForm.id} onChange={e => setCatForm(p => ({ ...p, id: e.target.value }))}
+                                        placeholder="مثال: custom-category-url" dir="ltr"
+                                        className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 px-5 text-white text-sm focus:outline-none focus:border-yellow-400/50 transition text-left" />
                                 </div>
                                 <div>
                                     <label className="text-gray-400 text-xs font-arabic mb-2 block mr-1">الترتيب في القائمة</label>

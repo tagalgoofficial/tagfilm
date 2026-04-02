@@ -1,7 +1,7 @@
 import { db } from './config';
 import {
-    collection, doc, addDoc, updateDoc, deleteDoc,
-    getDocs, getDoc, query, orderBy, serverTimestamp
+    collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
+    getDocs, getDoc, query, orderBy, serverTimestamp, where
 } from 'firebase/firestore';
 
 const CATEGORIES_COL = 'categories';
@@ -13,19 +13,83 @@ export const getCategories = async () => {
     return snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 };
 
-// إضافة تصنيف رئيسي
+// إضافة تصنيف رئيسي مع إمكانية تحديد المعرف (ID/Slug) مخصص
 export const addCategory = async (data) => {
-    const docRef = await addDoc(collection(db, CATEGORIES_COL), {
-        ...data,
-        subcategories: data.subcategories || [],
-        createdAt: serverTimestamp(),
-    });
-    return docRef.id;
+    let docRef;
+    if (data.id && data.id.trim() !== '') {
+        // استخدام المعرف المخصص
+        const cleanId = data.id.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+        docRef = doc(db, CATEGORIES_COL, cleanId);
+        await setDoc(docRef, {
+            ...data,
+            subcategories: data.subcategories || [],
+            createdAt: serverTimestamp(),
+        });
+        return cleanId;
+    } else {
+        // توليد معرف عشوائي تلقائي عبر Firebase
+        docRef = await addDoc(collection(db, CATEGORIES_COL), {
+            ...data,
+            subcategories: data.subcategories || [],
+            createdAt: serverTimestamp(),
+        });
+        return docRef.id;
+    }
 };
 
 // تعديل تصنيف
 export const updateCategory = async (id, data) => {
     await updateDoc(doc(db, CATEGORIES_COL, id), { ...data, updatedAt: serverTimestamp() });
+};
+
+// تغيير المعرف (الرابط) الخاص بتصنيف وتحديث جميع الأفلام والمسلسلات المرتبطة به
+export const changeCategoryId = async (oldId, newId) => {
+    const cleanId = newId.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+    if (cleanId === oldId) return cleanId;
+
+    // 1. جلب بيانات التصنيف القديم
+    const oldCatRef = doc(db, CATEGORIES_COL, oldId);
+    const snap = await getDoc(oldCatRef);
+    if (!snap.exists()) throw new Error('التصنيف غير موجود');
+
+    // 2. التحقق من أن المعرف الجديد ليس مستخدماً بالفعل
+    const newCatRef = doc(db, CATEGORIES_COL, cleanId);
+    if ((await getDoc(newCatRef)).exists()) throw new Error('هذا الرابط مستخدم بالفعل لتصنيف آخر');
+
+    const catData = snap.data();
+
+    // 3. إنشاء التصنيف بالمعرف الجديد
+    await setDoc(newCatRef, { ...catData, updatedAt: serverTimestamp() });
+
+    // 4. تحديث الأفلام المرتبطة بهذا التصنيف
+    const moviesQ = query(collection(db, 'movies'), where('category', '==', oldId));
+    const moviesSnap = await getDocs(moviesQ);
+    for (const mDoc of moviesSnap.docs) {
+        await updateDoc(mDoc.ref, { category: cleanId });
+    }
+
+    // 5. تحديث المسلسلات المرتبطة بهذا التصنيف
+    const seriesQ = query(collection(db, 'series'), where('category', '==', oldId));
+    const seriesSnap = await getDocs(seriesQ);
+    for (const sDoc of seriesSnap.docs) {
+        await updateDoc(sDoc.ref, { category: cleanId });
+    }
+
+    // 6. تحديث المحتوى المميز (Featured) المرتبط بهذا التصنيف
+    const featuredQ = query(collection(db, 'featured'), where('categoryId', '==', oldId));
+    const featuredSnap = await getDocs(featuredQ);
+    for (const fDoc of featuredSnap.docs) {
+        const featData = fDoc.data();
+        // معرّف العنصر المميز يحتوي على categoryId، فيجب إنشاء مستند جديد وحذف القديم
+        const newFeatId = `${featData.type}_${featData.contentId}_${cleanId}`;
+        await setDoc(doc(db, 'featured', newFeatId), { ...featData, categoryId: cleanId });
+        await deleteDoc(fDoc.ref);
+    }
+
+    // 7. حذف التصنيف القديم
+    await deleteDoc(oldCatRef);
+
+    return cleanId;
 };
 
 // حذف تصنيف
@@ -65,7 +129,10 @@ export const deleteSubcategory = async (categoryId, subId) => {
 export const initDefaultCategories = async () => {
     const q = query(collection(db, CATEGORIES_COL));
     const snapshot = await getDocs(q);
-    const existingLabels = snapshot.docs.map(d => d.data().label);
+
+    // منع إعادة إضافة التصنيفات إذا كانت المجموعة تحتوي على بيانات بالفعل
+    // هذا يتيح للمستخدم إمكانية تعديل أسماء التصنيفات الافتراضية أو حذفها دون أن تعود.
+    if (!snapshot.empty) return;
 
     const defaults = [
         { label: 'أفلام عربية', labelEn: 'Arabic Movies', icon: 'movies', order: 1, subcategories: [] },
@@ -100,8 +167,6 @@ export const initDefaultCategories = async () => {
     ];
 
     for (const cat of defaults) {
-        if (!existingLabels.includes(cat.label)) {
-            await addDoc(collection(db, CATEGORIES_COL), { ...cat, createdAt: serverTimestamp() });
-        }
+        await addDoc(collection(db, CATEGORIES_COL), { ...cat, createdAt: serverTimestamp() });
     }
 };

@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase/config';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { getTagAlgoSecureUrl } from '../services/tagAlgoService';
+import Hls from 'hls.js';
 
 /* =====================
    أيقونات SVG داخلية
@@ -110,8 +112,76 @@ const VideoPlayer = ({
     const [showEndOverlay, setShowEndOverlay] = useState(false);
     const [countdown, setCountdown] = useState(10);
     const [activeSubtitle, setActiveSubtitle] = useState(-1); // -1 = off
+    const [realSrc, setRealSrc] = useState(src || '');
+    const fetchingToken = false;
     const countdownTimer = useRef(null);
     const saveTimer = useRef(null);
+    const hlsRef = useRef(null);
+
+    // مشغل HLS.js
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video || !realSrc || fetchingToken) return;
+
+        const urlToPlay = useProxy ? `https://api.allorigins.win/raw?url=${encodeURIComponent(realSrc)}` : realSrc;
+        const isHls = urlToPlay.toLowerCase().includes('.m3u8') || urlToPlay.includes('token=') || realSrc.includes('streaming.tagalgo.com');
+
+        if (Hls.isSupported() && isHls) {
+            if (hlsRef.current) hlsRef.current.destroy();
+            const hls = new Hls({
+                enableWorker: true,
+                lowLatencyMode: true,
+                xhrSetup: (xhr, url) => {
+                    if (url.includes('.m3u8')) {
+                        xhr.withCredentials = true; // Manifest needs cookie
+                    } else {
+                        xhr.withCredentials = false; // Segments (.ts) do not
+                    }
+                }
+            });
+            hlsRef.current = hls;
+
+            hls.loadSource(urlToPlay);
+            hls.attachMedia(video);
+
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                if (playing) video.play().catch(e => console.log("Auto-play blocked", e));
+            });
+
+            hls.on(Hls.Events.ERROR, (event, data) => {
+                if (data.fatal) {
+                    switch (data.type) {
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            console.log("HLS Network Error, retrying...");
+                            hls.startLoad();
+                            break;
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            console.log("HLS Media Error, recovering...");
+                            hls.recoverMediaError();
+                            break;
+                        default:
+                            console.log("HLS Fatal Error, destroying...");
+                            hls.destroy();
+                            break;
+                    }
+                }
+            });
+        } else {
+            // Fallback natively (Safari/iOS) or for direct URLs
+            if (hlsRef.current) {
+                hlsRef.current.destroy();
+                hlsRef.current = null;
+            }
+            video.src = urlToPlay;
+        }
+
+        return () => {
+            if (hlsRef.current) {
+                hlsRef.current.destroy();
+                hlsRef.current = null;
+            }
+        };
+    }, [realSrc, useProxy, fetchingToken]);
 
     // إعادة ضبط overlay الحلقة عند تغيير المصدر
     useEffect(() => {
@@ -146,8 +216,8 @@ const VideoPlayer = ({
                 const docRef = doc(db, 'users', user.uid, 'watchHistory', historyId);
                 const docSnap = await getDoc(docRef);
                 if (docSnap.exists() && !docSnap.data().finished) {
-                    const savedTime = docSnap.data().progress;
-                    if (savedTime > 10 && videoRef.current) {
+                    const savedTime = Number(docSnap.data().progress);
+                    if (!isNaN(savedTime) && isFinite(savedTime) && savedTime > 10 && videoRef.current) {
                         videoRef.current.currentTime = savedTime;
                         setCurrentTime(savedTime);
                     }
@@ -508,7 +578,6 @@ const VideoPlayer = ({
             {/* الفيديو */}
             <video
                 ref={videoRef}
-                src={useProxy ? `https://api.allorigins.win/raw?url=${encodeURIComponent(src)}` : src}
                 poster={poster}
                 playsInline
                 crossOrigin={useProxy ? "anonymous" : undefined}
@@ -555,8 +624,8 @@ const VideoPlayer = ({
             </AnimatePresence>
 
             {/* تحميل */}
-            {loading && (
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            {(loading || fetchingToken) && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                     <div className="w-14 h-14 rounded-full border-4 border-yellow-400/30 border-t-yellow-400 animate-spin" />
                 </div>
             )}

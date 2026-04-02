@@ -32,10 +32,11 @@ import CategoriesManager from './admin/pages/CategoriesManager';
 import MovieCategoriesManager from './admin/pages/MovieCategoriesManager';
 import SectionsManager from './admin/pages/SectionsManager';
 import FeaturedManager from './admin/pages/FeaturedManager';
+import QuickAddMovie from './admin/pages/QuickAddMovie';
 import { getSections, initDefaultSections } from './firebase/sectionsService';
 import { initDefaultCategories } from './firebase/categoriesService';
 import { getFeatured } from './firebase/featuredService';
-import logo from './assets/Logo.png';
+import logo from './assets/logo.png';
 import './index.css';
 
 function HomePage() {
@@ -150,6 +151,7 @@ function App() {
                 <Route path="movie-categories" element={<MovieCategoriesManager />} />
                 <Route path="sections" element={<SectionsManager />} />
                 <Route path="featured" element={<FeaturedManager />} />
+                <Route path="quick-add" element={<QuickAddMovie />} />
               </Route>
             </Routes>
           </div>

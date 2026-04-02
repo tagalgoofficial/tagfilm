@@ -17,6 +17,8 @@ import {
 import { getCategories } from '../../firebase/categoriesService';
 import TMDBSearchModal from '../components/TMDBSearchModal';
 import BulkUrlReplacerModal from '../components/BulkUrlReplacerModal';
+import TagAlgoPickerModal from '../components/TagAlgoPickerModal';
+import { searchSeries, getSeriesDetails } from '../../services/tmdbService';
 
 const emptySeriesForm = {
     title: '', titleAr: '', titleEn: '', overview: '', poster: '', backdrop: '', logo: '',
@@ -67,6 +69,8 @@ const setEpisodeUrl = (url, epNum) => {
 const SeriesModal = ({ isOpen, onClose, onSave, editData, categories, folders }) => {
     const [form, setForm] = useState(editData || emptySeriesForm);
     const [tmdbOpen, setTmdbOpen] = useState(false);
+    const [tmdbQuery, setTmdbQuery] = useState('');
+    const [tagAlgoOpen, setTagAlgoOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [tab, setTab] = useState('basic');
 
@@ -78,6 +82,15 @@ const SeriesModal = ({ isOpen, onClose, onSave, editData, categories, folders })
     const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
     const handleTMDBSelect = (data) => {
+        // محاولة تخمين التصنيف بناءً على الأنواع (Genres)
+        let guessedCategory = form.category;
+        if (!guessedCategory && data.genres && data.genres.length > 0) {
+            const match = categories.find(c =>
+                data.genres.some(g => c.label.includes(g) || g.includes(c.label))
+            );
+            if (match) guessedCategory = match.id;
+        }
+
         setForm(prev => ({
             ...prev,
             title: data.titleAr || data.title,
@@ -92,7 +105,21 @@ const SeriesModal = ({ isOpen, onClose, onSave, editData, categories, folders })
             logo: data.logo,
             tmdbId: data.tmdbId,
             seasonsCount: data.seasonsCount,
+            category: guessedCategory,
         }));
+    };
+
+    const autoFetchTMDB = async (name) => {
+        if (!name) return;
+        try {
+            const results = await searchSeries(name);
+            if (results && results.length > 0) {
+                const details = await getSeriesDetails(results[0].id);
+                handleTMDBSelect(details);
+            }
+        } catch (err) {
+            console.error("Auto TMDB fetch failed:", err);
+        }
     };
 
     const handleSave = async () => {
@@ -100,6 +127,7 @@ const SeriesModal = ({ isOpen, onClose, onSave, editData, categories, folders })
         setSaving(true);
         await onSave(form);
         setSaving(false);
+        setTmdbQuery('');
         onClose();
     };
 
@@ -131,6 +159,13 @@ const SeriesModal = ({ isOpen, onClose, onSave, editData, categories, folders })
                                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-arabic font-semibold text-white"
                                 style={{ background: 'linear-gradient(135deg, #00d4ff, #0080ff)' }}>
                                 <MdSearch /> جلب من TMDB
+                            </button>
+                            <button
+                                onClick={() => setTagAlgoOpen(true)}
+                                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-arabic font-semibold text-white border border-green-400/40 hover:border-green-400/80 transition-all"
+                                style={{ background: 'linear-gradient(135deg, rgba(0,255,128,0.1), rgba(0,255,128,0.2))' }}
+                            >
+                                <span className="text-green-400 text-base">🌐</span> TagAlgo
                             </button>
                             <button onClick={onClose} className="p-2 rounded-xl text-gray-400 hover:text-white hover:bg-white/10 transition">
                                 <MdClose className="text-xl" />
@@ -296,9 +331,30 @@ const SeriesModal = ({ isOpen, onClose, onSave, editData, categories, folders })
                     </div>
                 </motion.div>
 
-                <TMDBSearchModal isOpen={tmdbOpen} onClose={() => setTmdbOpen(false)} onSelect={handleTMDBSelect} type="tv" />
+                <TMDBSearchModal
+                    isOpen={tmdbOpen}
+                    onClose={() => { setTmdbOpen(false); setTmdbQuery(''); }}
+                    onSelect={handleTMDBSelect}
+                    initialQuery={tmdbQuery}
+                    type="tv"
+                />
+
+                <TagAlgoPickerModal
+                    isOpen={tagAlgoOpen}
+                    onClose={() => setTagAlgoOpen(false)}
+                    onSelect={(srv) => {
+                        if (srv.videoName) {
+                            const cleanName = srv.videoName;
+                            if (!form.titleAr && !form.title) {
+                                set('titleAr', cleanName);
+                                set('title', cleanName);
+                                autoFetchTMDB(cleanName); // جلب تلقائي بالكامل
+                            }
+                        }
+                    }}
+                />
             </motion.div>
-        </AnimatePresence>
+        </AnimatePresence >
     );
 };
 
@@ -324,6 +380,7 @@ const SeasonsPanel = ({ seriesId, seasons, onUpdate }) => {
     const [saving, setSaving] = useState(false);
     const [bulkConfirm, setBulkConfirm] = useState(null);
     const [editingSeason, setEditingSeason] = useState(null);
+    const [tagAlgoOpen, setTagAlgoOpen] = useState(false);
 
     const handleAddSeason = async () => {
         if (!newSeasonForm.seasonNumber) return;
@@ -568,13 +625,22 @@ const SeasonsPanel = ({ seriesId, seasons, onUpdate }) => {
                                             <div className="border-t border-white/10 pt-3">
                                                 <div className="flex items-center justify-between mb-2">
                                                     <p className="text-yellow-400 text-xs font-bold font-arabic">سيرفرات المشاهدة ({epForm.servers?.length || 0})</p>
-                                                    <button
-                                                        onClick={() => setEpForm(p => ({ ...p, servers: [...(p.servers || []), { ...emptyEpServer, name: `سيرفر ${(p.servers?.length || 0) + 1}` }] }))}
-                                                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-black text-xs font-bold"
-                                                        style={{ background: 'linear-gradient(135deg, #ffd700, #ff8c00)' }}
-                                                    >
-                                                        <MdAdd /> إضافة سيرفر
-                                                    </button>
+                                                    <div className="flex items-center gap-2">
+                                                        <button
+                                                            onClick={() => setTagAlgoOpen(true)}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-bold border border-green-400/40 hover:border-green-400/80 transition-all"
+                                                            style={{ background: 'linear-gradient(135deg, rgba(0,255,128,0.15), rgba(0,179,89,0.15))' }}
+                                                        >
+                                                            <span className="text-green-400">🌐</span> TagAlgo
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setEpForm(p => ({ ...p, servers: [...(p.servers || []), { ...emptyEpServer, name: `سيرفر ${(p.servers?.length || 0) + 1}` }] }))}
+                                                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-black text-xs font-bold"
+                                                            style={{ background: 'linear-gradient(135deg, #ffd700, #ff8c00)' }}
+                                                        >
+                                                            <MdAdd /> إضافة سيرفر
+                                                        </button>
+                                                    </div>
                                                 </div>
                                                 {(epForm.servers || []).map((srv, si) => (
                                                     <div key={si} className="p-3 mb-2 rounded-xl space-y-2" style={{ background: 'rgba(255,215,0,0.04)', border: '1px solid rgba(255,215,0,0.12)' }}>
@@ -730,6 +796,11 @@ const SeasonsPanel = ({ seriesId, seasons, onUpdate }) => {
                     </motion.div>
                 )}
             </AnimatePresence>
+            <TagAlgoPickerModal
+                isOpen={tagAlgoOpen}
+                onClose={() => setTagAlgoOpen(false)}
+                onSelect={(srv) => setEpForm(p => ({ ...p, servers: [...(p.servers || []), srv] }))}
+            />
         </div>
     );
 };
@@ -816,6 +887,68 @@ const SeriesManager = () => {
         return matchesSearch && matchesFolder;
     });
 
+    const [selectedItems, setSelectedItems] = useState([]);
+
+    const handleSelectAll = (e) => {
+        if (e.target.checked) setSelectedItems(filtered.map(s => s.id));
+        else setSelectedItems([]);
+    };
+
+    const handleCheckboxChange = (id) => {
+        if (selectedItems.includes(id)) setSelectedItems(selectedItems.filter(i => i !== id));
+        else setSelectedItems([...selectedItems, id]);
+    };
+
+    const handleBulkDelete = async () => {
+        if (!confirm(`هل أنت متأكد من حذف ${selectedItems.length} مسلسل؟`)) return;
+        setLoading(true);
+        for (const id of selectedItems) await deleteSeries(id);
+        setSelectedItems([]);
+        await load();
+    };
+
+    const handleExportJson = () => {
+        const dataToExport = selectedItems.length > 0 ? seriesList.filter(s => selectedItems.includes(s.id)) : seriesList;
+        const data = JSON.stringify(dataToExport, null, 2);
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `series_backup_${new Date().toISOString().slice(0, 10)}.json`;
+        a.click();
+    };
+
+    const handleImportJson = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            try {
+                const data = JSON.parse(event.target.result);
+                if (!Array.isArray(data)) throw new Error('الملف يجب أن يحتوي على مصفوفة مسلسلات');
+                if (!confirm(`سيتم استيراد ${data.length} مسلسل، هل أنت متأكد؟`)) return;
+                setLoading(true);
+                let importedCount = 0;
+                for (const series of data) {
+                    const { id, createdAt, updatedAt, ...seriesData } = series;
+                    if (!seriesData.title) continue;
+                    const exists = seriesList.some(s => s.title === seriesData.title && s.year === seriesData.year);
+                    if (!exists) {
+                        await addSeries(seriesData);
+                        importedCount++;
+                    }
+                }
+                alert(`تم استيراد ${importedCount} مسلسل بنجاح (تم تجاهل المتكرر).`);
+                await load();
+            } catch (err) {
+                alert('خطأ في الاستيراد: ' + err.message);
+                setLoading(false);
+            }
+        };
+        reader.readAsText(file);
+        e.target.value = null;
+    };
+
     const handleBulkAutoGenerate = async () => {
         const TARGET_CAT = "مسلسلات رمضان 2026";
         const targets = seriesList.filter(s => s.subcategories?.includes(TARGET_CAT) || s.subcategory === TARGET_CAT);
@@ -877,7 +1010,22 @@ const SeriesManager = () => {
                     <h1 className="text-2xl font-black text-white font-arabic">إدارة المسلسلات</h1>
                     <p className="text-gray-400 text-sm font-arabic">{seriesList.length} مسلسل محفوظ</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3 justify-end">
+                    {selectedItems.length > 0 && (
+                        <button onClick={handleBulkDelete}
+                            className="flex items-center gap-2 px-4 py-3 rounded-xl text-white font-bold text-sm bg-red-500/20 hover:bg-red-500 transition-all border border-red-500/20">
+                            <MdDelete className="text-lg" /> حذف {selectedItems.length}
+                        </button>
+                    )}
+                    <input type="file" accept=".json" id="import_series_json" className="hidden" onChange={handleImportJson} />
+                    <button onClick={() => document.getElementById('import_series_json').click()}
+                        className="flex items-center gap-2 px-4 py-3 rounded-xl text-white font-bold text-xs sm:text-sm bg-blue-500/20 hover:bg-blue-500/40 transition-all border border-blue-500/20">
+                        ⬇️ استيراد
+                    </button>
+                    <button onClick={handleExportJson}
+                        className="flex items-center gap-2 px-4 py-3 rounded-xl text-white font-bold text-xs sm:text-sm bg-emerald-500/20 hover:bg-emerald-500/40 transition-all border border-emerald-500/20">
+                        ⬆️ تصدير
+                    </button>
                     <button onClick={() => setIsUrlModalOpen(true)}
                         className="flex items-center gap-2 px-5 py-3 rounded-xl text-white font-bold text-sm bg-white/10 hover:bg-white/20 transition-all border border-white/10">
                         <MdLink className="text-lg" /> استبدال الروابط
@@ -887,11 +1035,11 @@ const SeriesManager = () => {
                         <MdPlayCircle className="text-xl" /> توليد حلقات رمضان 2026
                     </button>
                     <button onClick={() => setFolderModal(true)}
-                        className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 border border-white/5 transition font-bold text-sm">
+                        className="flex items-center gap-2 px-5 py-3 rounded-xl bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 border border-white/5 transition font-bold text-sm flex-shrink-0">
                         <MdSettings className="text-lg" /> إدارة المجلدات
                     </button>
                     <button onClick={() => { setEditSeries(null); setModalOpen(true); }}
-                        className="flex items-center gap-2 px-5 py-3 rounded-xl text-white font-bold text-sm"
+                        className="flex items-center gap-2 px-5 py-3 rounded-xl text-white font-bold text-sm flex-shrink-0"
                         style={{ background: 'linear-gradient(135deg, #00d4ff, #0080ff)' }}>
                         <MdAdd className="text-lg" /> إضافة مسلسل
                     </button>
@@ -938,11 +1086,34 @@ const SeriesManager = () => {
                 </div>
             ) : (
                 <div className="space-y-3">
+                    {/* Select All Row */}
+                    {filtered.length > 0 && (
+                        <div className="flex items-center gap-3 px-4 py-3 bg-white/5 rounded-2xl border border-white/10 mb-4 cursor-pointer" onClick={(e) => { e.stopPropagation(); document.getElementById('selectAllSeries').click() }}>
+                            <input
+                                id="selectAllSeries"
+                                type="checkbox"
+                                className="w-5 h-5 accent-cyan-500 cursor-pointer"
+                                checked={filtered.length > 0 && selectedItems.length === filtered.length}
+                                onChange={handleSelectAll}
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                            <label htmlFor="selectAllSeries" className="text-white font-arabic text-sm cursor-pointer select-none">تحديد الكل ({filtered.length})</label>
+                            <span className="text-gray-500 text-xs mr-auto">{selectedItems.length} محدد</span>
+                        </div>
+                    )}
                     {filtered.map((series, i) => (
                         <motion.div key={series.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
                             className="rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
                             {/* Series Row */}
                             <div className="flex items-center gap-4 p-4" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                                <div className="flex flex-col items-center justify-center pl-2" onClick={(e) => e.stopPropagation()}>
+                                    <input
+                                        type="checkbox"
+                                        className="w-5 h-5 accent-cyan-500 cursor-pointer"
+                                        checked={selectedItems.includes(series.id)}
+                                        onChange={() => handleCheckboxChange(series.id)}
+                                    />
+                                </div>
                                 <img src={series.poster || 'https://via.placeholder.com/60x80?text=N/A'} alt=""
                                     className="w-14 h-20 object-cover rounded-xl flex-shrink-0" />
                                 <div className="flex-1 min-w-0">

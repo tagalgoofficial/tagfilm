@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import logoWebm from '../assets/logo.webm';
+import logo from '../assets/logo.png';
 
 export default function SplashScreen({ onFinish }) {
     const [show, setShow] = useState(true);
@@ -50,17 +50,11 @@ export default function SplashScreen({ onFinish }) {
                                 className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent skew-x-12 z-10"
                             />
 
-                            <video
-                                autoPlay
-                                loop={false}
-                                muted
-                                playsInline
-                                onEnded={() => { }}
+                            <img
+                                src={logo}
+                                alt="TagFilm Logo"
                                 className="h-40 md:h-64 w-auto object-contain drop-shadow-[0_0_60px_rgba(255,215,0,0.4)]"
-                                style={{ mixBlendMode: 'normal' }}
-                            >
-                                <source src={logoWebm} type="video/webm" />
-                            </video>
+                            />
                         </motion.div>
 
                         {/* Cinematic Text/Subtext */}

@@ -24,6 +24,8 @@ const SeriesPage = () => {
     const [activeEpisode, setActiveEpisode] = useState(null);
     const [activeServer, setActiveServer] = useState(0);
     const [playerMode, setPlayerMode] = useState(false);
+    const [resolvedUrl, setResolvedUrl] = useState('');
+    const [fetchingStream, setFetchingStream] = useState(false);
     const { toggleFavorite, isFavorite } = useFavorites();
     const isFav = isFavorite(id);
 
@@ -60,6 +62,13 @@ const SeriesPage = () => {
         }
     }, [series]);
 
+    const handleEpisodeClick = (ep) => {
+        setActiveEpisode(ep);
+        setActiveServer(0);
+        setPlayerMode(true);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     const currentSeason = series?.seasons?.[activeSeason];
     const episodes = currentSeason?.episodes || [];
     const servers = activeEpisode?.servers || [];
@@ -73,12 +82,32 @@ const SeriesPage = () => {
         0
     );
 
-    const handleEpisodeClick = (ep) => {
-        setActiveEpisode(ep);
-        setActiveServer(0);
-        setPlayerMode(true);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
+    // Resolve TagAlgo URLs
+    useEffect(() => {
+        const resolveUrl = async () => {
+            if (!currentLink) {
+                setResolvedUrl('');
+                return;
+            }
+
+            if (currentLink.includes('api.tagalgo.com/api/play/')) {
+                setFetchingStream(true);
+                try {
+                    const response = await fetch(currentLink, { credentials: 'include' });
+                    if (!response.ok) throw new Error('فشل جلب رابط البث');
+                    const data = await response.json();
+                    setResolvedUrl(data.secureUrl);
+                } catch (err) {
+                    console.error("Error fetching secure URL:", err);
+                    setResolvedUrl(currentLink); // Fallback
+                }
+                setFetchingStream(false);
+            } else {
+                setResolvedUrl(currentLink);
+            }
+        };
+        resolveUrl();
+    }, [currentLink]);
 
     if (loading) {
         return (
@@ -128,19 +157,26 @@ const SeriesPage = () => {
                             </div>
                         </div>
 
-                        <VideoPlayer
-                            key={currentLink}
-                            src={currentLink}
-                            poster={activeEpisode.still || currentSeason?.poster || series.backdrop}
-                            title={series.titleAr || series.title}
-                            subtitle={`الموسم ${currentSeason?.seasonNumber} • الحلقة ${activeEpisode.episodeNumber}`}
-                            introEnd={introEnd}
-                            mediaId={id}
-                            mediaType="series"
-                            currentEpisode={activeEpisode}
-                            nextEpisode={episodes.find(e => Number(e.episodeNumber) === Number(activeEpisode.episodeNumber) + 1)}
-                            onNavigateToEpisode={handleEpisodeClick}
-                        />
+                        {fetchingStream ? (
+                            <div className="aspect-video bg-black flex flex-col items-center justify-center space-y-4">
+                                <div className="w-12 h-12 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+                                <p className="text-white font-arabic text-sm">جاري تجهيز البث الآمن...</p>
+                            </div>
+                        ) : (
+                            <VideoPlayer
+                                key={resolvedUrl}
+                                src={resolvedUrl}
+                                poster={activeEpisode.still || currentSeason?.poster || series.backdrop}
+                                title={series.titleAr || series.title}
+                                subtitle={`الموسم ${currentSeason?.seasonNumber} • الحلقة ${activeEpisode.episodeNumber}`}
+                                introEnd={introEnd}
+                                mediaId={id}
+                                mediaType="series"
+                                currentEpisode={activeEpisode}
+                                nextEpisode={episodes.find(e => Number(e.episodeNumber) === Number(activeEpisode.episodeNumber) + 1)}
+                                onNavigateToEpisode={handleEpisodeClick}
+                            />
+                        )}
 
                         {/* Server Selection */}
                         {servers.length > 1 && (
@@ -217,6 +253,15 @@ const SeriesPage = () => {
                                         {series.quality}
                                     </span>
                                 )}
+                                {series.subcategories && series.subcategories.length > 0 ? (
+                                    <span className="bg-white/10 px-2 sm:px-3 py-1 rounded-lg text-[10px] sm:text-xs border border-white/10 font-black truncate max-w-[200px] font-arabic text-cyan-300">
+                                        {series.subcategories.join('، ')}
+                                    </span>
+                                ) : series.subcategory ? (
+                                    <span className="bg-white/10 px-2 sm:px-3 py-1 rounded-lg text-[10px] sm:text-xs border border-white/10 font-black truncate max-w-[200px] font-arabic text-cyan-300">
+                                        {series.subcategory}
+                                    </span>
+                                ) : null}
                             </div>
 
                             <p className="text-gray-200 text-lg lg:text-xl font-arabic leading-relaxed mb-10 line-clamp-3 max-w-2xl">

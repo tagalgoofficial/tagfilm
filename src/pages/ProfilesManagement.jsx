@@ -4,8 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase/config';
 import { doc, updateDoc } from 'firebase/firestore';
-import logoWebm from '../assets/logo.webm';
-import logo from '../assets/Logo.png';
+
+import logo from '../assets/logo.png';
 
 // 30 avatar color combos
 const AVATAR_COLORS = [
