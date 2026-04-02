@@ -1,8 +1,8 @@
-const CACHE_NAME = 'tagfilm-v1';
+const CACHE_NAME = 'tagfilm-v3';
 const ASSETS = [
     '/',
     '/index.html',
-    '/Logo.png'
+    '/logo.png'
 ];
 
 self.addEventListener('install', (event) => {
