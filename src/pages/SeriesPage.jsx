@@ -26,6 +26,7 @@ const SeriesPage = () => {
     const [playerMode, setPlayerMode] = useState(false);
     const [resolvedUrl, setResolvedUrl] = useState('');
     const [fetchingStream, setFetchingStream] = useState(false);
+    const [showTrailer, setShowTrailer] = useState(false);
     const { toggleFavorite, isFavorite } = useFavorites();
     const isFav = isFavorite(id);
 
@@ -281,6 +282,18 @@ const SeriesPage = () => {
                                     شاهد الحلقة الأولى
                                 </motion.button>
 
+                                {series.trailer && (
+                                    <motion.button
+                                        whileHover={{ scale: 1.05, boxShadow: '0 0 40px rgba(255, 0, 0, 0.3)' }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => setShowTrailer(true)}
+                                        className="flex items-center justify-center gap-3 sm:gap-4 px-8 py-4 sm:px-10 sm:py-5 bg-red-600/10 border border-red-600/30 text-red-500 font-black rounded-xl sm:rounded-2xl text-lg sm:text-xl shadow-2xl transition-all font-arabic"
+                                    >
+                                        <MdPlayCircle className="text-2xl sm:text-2xl text-red-500" />
+                                        التريلر
+                                    </motion.button>
+                                )}
+
                                 <motion.button
                                     whileHover={{ scale: 1.05, background: isFav ? 'rgba(255,215,0,0.15)' : 'rgba(255,255,255,0.15)' }}
                                     whileTap={{ scale: 0.95 }}
@@ -439,12 +452,52 @@ const SeriesPage = () => {
                                 )}
                                 <InfoItem icon={MdLanguage} label="اللغة" value={series.language || 'العربية'} />
                                 <InfoItem icon={MdCalendarToday} label="سنة الإنتاج" value={series.year} />
+                                {series.genres && series.genres.length > 0 && (
+                                    <InfoItem icon={MdMovieFilter} label="الأنواع" value={series.genres.join(' ، ')} />
+                                )}
                                 <InfoItem icon={MdTv} label="عدد المواسم" value={`${series.seasons?.length || 0} مواسم`} />
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Trailer Modal */}
+            <AnimatePresence>
+                {showTrailer && series.trailer && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
+                        onClick={() => setShowTrailer(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="relative w-full max-w-4xl aspect-video rounded-3xl overflow-hidden bg-black shadow-2xl border border-white/10"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <button
+                                onClick={() => setShowTrailer(false)}
+                                className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center rounded-xl bg-black/50 text-white hover:bg-white/10 transition backdrop-blur-md"
+                            >
+                                <span>✕</span>
+                            </button>
+
+                            <iframe
+                                src={`https://www.youtube.com/embed/${series.trailer.split('v=')[1]}?autoplay=1`}
+                                title="Trailer"
+                                className="w-full h-full"
+                                frameBorder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                            />
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

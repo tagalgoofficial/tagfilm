@@ -21,8 +21,8 @@ import TagAlgoPickerModal from '../components/TagAlgoPickerModal';
 import { searchSeries, getSeriesDetails } from '../../services/tmdbService';
 
 const emptySeriesForm = {
-    title: '', titleAr: '', titleEn: '', overview: '', poster: '', backdrop: '', logo: '',
-    year: '', rating: '', quality: 'WEB-DL', introDuration: '', category: '', subcategories: [],
+    title: '', titleAr: '', titleEn: '', overview: '', trailer: '', poster: '', backdrop: '', logo: '',
+    year: '', rating: '', quality: 'WEB-DL', introDuration: '', category: '', categories: [], subcategories: [],
     folderId: '', cast: [], featured: false, isComingSoon: false, tmdbId: null, seasons: [], type: 'series',
 };
 
@@ -82,13 +82,18 @@ const SeriesModal = ({ isOpen, onClose, onSave, editData, categories, folders })
     const set = (k, v) => setForm(prev => ({ ...prev, [k]: v }));
 
     const handleTMDBSelect = (data) => {
-        // محاولة تخمين التصنيف بناءً على الأنواع (Genres)
-        let guessedCategory = form.category;
-        if (!guessedCategory && data.genres && data.genres.length > 0) {
-            const match = categories.find(c =>
-                data.genres.some(g => c.label.includes(g) || g.includes(c.label))
-            );
-            if (match) guessedCategory = match.id;
+        // محاولة تخمين التصنيفات بناءً على الأنواع (Genres)
+        let guessedCategories = [...(form.categories || [])];
+        if (data.genres && data.genres.length > 0) {
+            const matches = categories.filter(c =>
+                data.genres.some(g =>
+                    (c.label && (c.label.includes(g) || g.includes(c.label))) ||
+                    (c.labelEn && (c.labelEn.toLowerCase().includes(g.toLowerCase()) || g.toLowerCase().includes(c.labelEn.toLowerCase())))
+                )
+            ).map(c => c.id);
+
+            // دمج التصنيفات المكتشفة مع الموجودة بدون تكرار
+            guessedCategories = Array.from(new Set([...guessedCategories, ...matches]));
         }
 
         setForm(prev => ({
@@ -97,6 +102,7 @@ const SeriesModal = ({ isOpen, onClose, onSave, editData, categories, folders })
             titleAr: data.titleAr,
             titleEn: data.titleEn,
             overview: data.overview,
+            trailer: data.trailer || prev.trailer,
             poster: data.poster,
             backdrop: data.backdrop,
             year: data.year,
@@ -105,7 +111,9 @@ const SeriesModal = ({ isOpen, onClose, onSave, editData, categories, folders })
             logo: data.logo,
             tmdbId: data.tmdbId,
             seasonsCount: data.seasonsCount,
-            category: guessedCategory,
+            categories: guessedCategories,
+            // للطلب القديم
+            category: guessedCategories[0] || prev.category,
         }));
     };
 
@@ -225,12 +233,36 @@ const SeriesModal = ({ isOpen, onClose, onSave, editData, categories, folders })
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="text-gray-300 text-sm font-arabic mb-1 block">التصنيف</label>
-                                        <select value={form.category} onChange={e => { set('category', e.target.value); set('subcategories', []); }}
-                                            className="w-full bg-white/5 border border-white/15 rounded-xl py-3 px-4 text-white text-sm focus:outline-none">
-                                            <option value="" className="bg-[#12122a]">اختر تصنيفاً</option>
-                                            {categories.map(c => <option key={c.id} value={c.id} className="bg-[#12122a]">{c.label}</option>)}
-                                        </select>
+                                        <label className="text-gray-300 text-sm font-arabic mb-2 block">التصنيفات الرئيسية (متعدد)</label>
+                                        <div className="flex flex-wrap gap-2 p-3 rounded-xl bg-white/5 border border-white/10 min-h-[60px]">
+                                            {categories.map(c => {
+                                                const isSelected = form.categories?.includes(c.id) || form.category === c.id;
+                                                return (
+                                                    <button
+                                                        key={c.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const current = form.categories || [];
+                                                            let next;
+                                                            if (isSelected) {
+                                                                next = current.filter(id => id !== c.id);
+                                                            } else {
+                                                                next = [...current, c.id];
+                                                            }
+                                                            set('categories', next);
+                                                            set('category', next[0] || ''); // للعمل مع الكود القديم
+                                                        }}
+                                                        className={`px-4 py-2 rounded-xl text-xs font-arabic font-bold transition-all border ${isSelected
+                                                            ? 'bg-cyan-400 text-black border-transparent shadow-lg shadow-cyan-400/20'
+                                                            : 'bg-white/5 text-gray-400 border-white/10 hover:border-white/20'
+                                                            }`}
+                                                    >
+                                                        {c.label}
+                                                        {isSelected && <MdCheck className="inline-block mr-1" />}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                     <div>
                                         <label className="text-gray-300 text-sm font-arabic mb-1 block">المجلد (Folder)</label>
@@ -241,6 +273,18 @@ const SeriesModal = ({ isOpen, onClose, onSave, editData, categories, folders })
                                         </select>
                                     </div>
                                 </div>
+                                {form.genres?.length > 0 && (
+                                    <div className="p-4 rounded-xl bg-cyan-400/5 border border-cyan-400/20">
+                                        <label className="text-cyan-400 text-xs font-arabic font-bold mb-2 block">الأنواع المجلوبة من TMDB</label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {form.genres.map((g, i) => (
+                                                <span key={i} className="px-3 py-1 rounded-full bg-cyan-400/10 text-cyan-400 text-[10px] font-bold border border-cyan-400/20">
+                                                    {g}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                                 {selectedCat?.subcategories?.length > 0 && (
                                     <div className="col-span-2">
                                         <label className="text-gray-300 text-sm font-arabic mb-2 block">التصنيفات الفرعية (متعدد)</label>
@@ -297,6 +341,18 @@ const SeriesModal = ({ isOpen, onClose, onSave, editData, categories, folders })
                                             <img src={form.logo} alt="logo preview" className="max-h-20 object-contain" />
                                         </div>
                                     )}
+                                </div>
+                                <div className="p-4 rounded-xl" style={{ background: 'rgba(255,0,0,0.05)', border: '1px dashed rgba(255,0,0,0.3)' }}>
+                                    <label className="text-red-400 text-sm font-arabic font-bold mb-1 flex items-center gap-2">
+                                        📺 رابط التريلر (YouTube)
+                                    </label>
+                                    <input
+                                        value={form.trailer || ''}
+                                        onChange={e => set('trailer', e.target.value)}
+                                        placeholder="https://www.youtube.com/watch?v=..."
+                                        dir="ltr"
+                                        className="w-full bg-white/5 border border-red-400/30 rounded-xl py-3 px-4 text-white text-sm focus:outline-none focus:border-red-400/60 transition"
+                                    />
                                 </div>
                             </>
                         )}

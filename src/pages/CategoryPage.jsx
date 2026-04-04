@@ -64,23 +64,27 @@ const CategoryPage = () => {
                 } else if (categoryId === 'tv-shows') {
                     // Find actual category in DB that represents TV Shows
                     cat = cats.find(c => c.labelEn === 'Others' || c.label === 'أخرى' || c.icon === 'other') || { label: 'البرامج التلفزيونية' };
-                    moviesFiltered = movies.filter(m => m.category === cat.id && m.subcategory === 'برامج').map(m => ({ ...m, _type: 'movie' }));
-                    seriesFiltered = series.filter(s => s.category === cat.id && s.subcategory === 'برامج').map(s => ({ ...s, _type: 'series' }));
+                    const isInCategory = (item, catId) => item.category === catId || (item.categories && item.categories.includes(catId));
+                    moviesFiltered = movies.filter(m => isInCategory(m, cat.id) && m.subcategory === 'برامج').map(m => ({ ...m, _type: 'movie' }));
+                    seriesFiltered = series.filter(s => isInCategory(s, cat.id) && s.subcategory === 'برامج').map(s => ({ ...s, _type: 'series' }));
                 } else if (categoryId === 'kids') {
                     cat = cats.find(c => c.labelEn === 'Others' || c.label === 'أخرى' || c.icon === 'other') || { label: 'أطفال' };
-                    moviesFiltered = movies.filter(m => m.category === cat.id && m.subcategory === 'أطفال').map(m => ({ ...m, _type: 'movie' }));
-                    seriesFiltered = series.filter(s => s.category === cat.id && s.subcategory === 'أطفال').map(s => ({ ...s, _type: 'series' }));
+                    const isInCategory = (item, catId) => item.category === catId || (item.categories && item.categories.includes(catId));
+                    moviesFiltered = movies.filter(m => isInCategory(m, cat.id) && m.subcategory === 'أطفال').map(m => ({ ...m, _type: 'movie' }));
+                    seriesFiltered = series.filter(s => isInCategory(s, cat.id) && s.subcategory === 'أطفال').map(s => ({ ...s, _type: 'series' }));
                 } else if (categoryId === 'ramadan') {
                     cat = cats.find(c => c.icon === 'ramadan') || { label: 'رمضان' };
-                    moviesFiltered = movies.filter(m => m.category === cat.id).map(m => ({ ...m, _type: 'movie' }));
-                    seriesFiltered = series.filter(s => s.category === cat.id).map(s => ({ ...s, _type: 'series' }));
+                    const isInCategory = (item, catId) => item.category === catId || (item.categories && item.categories.includes(catId));
+                    moviesFiltered = movies.filter(m => isInCategory(m, cat.id)).map(m => ({ ...m, _type: 'movie' }));
+                    seriesFiltered = series.filter(s => isInCategory(s, cat.id)).map(s => ({ ...s, _type: 'series' }));
                 } else {
                     cat = cats.find(c => c.id === categoryId);
+                    const isInCategory = (item, catId) => item.category === catId || (item.categories && item.categories.includes(catId));
                     moviesFiltered = movies
-                        .filter(m => m.category === categoryId)
+                        .filter(m => isInCategory(m, categoryId))
                         .map(m => ({ ...m, _type: 'movie' }));
                     seriesFiltered = series
-                        .filter(s => s.category === categoryId)
+                        .filter(s => isInCategory(s, categoryId))
                         .map(s => ({ ...s, _type: 'series' }));
                 }
 
@@ -140,7 +144,7 @@ const CategoryPage = () => {
         }
 
         if (activeCategoryFilter !== 'all') {
-            result = result.filter(i => i.category === activeCategoryFilter);
+            result = result.filter(i => i.category === activeCategoryFilter || (i.categories && i.categories.includes(activeCategoryFilter)));
         }
 
         if (search.trim()) {
@@ -259,7 +263,7 @@ const CategoryPage = () => {
                         <div className="space-y-12 pb-20">
                             {categoryId === 'movies' ? (
                                 movieCategories.map((mCat) => {
-                                    const catMovies = filtered.filter(m => m.category === mCat.id);
+                                    const catMovies = filtered.filter(m => m.category === mCat.id || (m.categories && m.categories.includes(mCat.id)));
                                     if (catMovies.length === 0) return null;
                                     return (
                                         <div key={mCat.id} id={mCat.id}>

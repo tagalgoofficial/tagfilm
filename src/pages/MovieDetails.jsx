@@ -23,6 +23,7 @@ const MovieDetails = () => {
     const [selectedPart, setSelectedPart] = useState(null); // null means main movie
     const [resolvedUrl, setResolvedUrl] = useState('');
     const [fetchingStream, setFetchingStream] = useState(false);
+    const [showTrailer, setShowTrailer] = useState(false);
     const { toggleFavorite, isFavorite } = useFavorites();
     const isFav = isFavorite(id);
 
@@ -122,7 +123,8 @@ const MovieDetails = () => {
         );
     }
 
-    const categoryLabel = categories.find(c => c.id === movie.category)?.label || movie.category;
+    const movieCategories = movie.categories || (movie.category ? [movie.category] : []);
+    const categoryLabel = movieCategories.map(catId => categories.find(c => c.id === catId)?.label || catId).join(' ، ') || 'بدون تصنيف';
     const subcategoryLabel = movie.subcategory;
 
     return (
@@ -271,6 +273,18 @@ const MovieDetails = () => {
                                     <AiFillPlayCircle className="text-2xl sm:text-2xl" />
                                     مشاهدة الآن
                                 </motion.button>
+
+                                {movie.trailer && (
+                                    <motion.button
+                                        whileHover={{ scale: 1.05, boxShadow: '0 0 40px rgba(255, 0, 0, 0.3)' }}
+                                        whileTap={{ scale: 0.95 }}
+                                        onClick={() => setShowTrailer(true)}
+                                        className="flex items-center justify-center gap-3 sm:gap-4 px-8 py-4 sm:px-10 sm:py-5 bg-red-600/10 border border-red-600/30 text-red-500 font-black rounded-xl sm:rounded-2xl text-lg sm:text-xl shadow-2xl transition-all font-arabic"
+                                    >
+                                        <AiFillPlayCircle className="text-2xl sm:text-2xl text-red-500" />
+                                        التريلر
+                                    </motion.button>
+                                )}
 
                                 {(() => {
                                     const dlServer = movie.servers?.find(s => s.downloadLink) || movie.servers?.[0];
@@ -441,6 +455,9 @@ const MovieDetails = () => {
                                 <InfoItem icon={BiTime} label="المدة" value={movie.duration} />
                                 <InfoItem icon={MdMovieFilter} label="التصنيف" value={categoryLabel} />
                                 {subcategoryLabel && <InfoItem icon={MdMovieFilter} label="التصنيف الفرعي" value={subcategoryLabel} />}
+                                {movie.genres && movie.genres.length > 0 && (
+                                    <InfoItem icon={MdMovieFilter} label="الأنواع" value={movie.genres.join(' ، ')} />
+                                )}
                                 {movie.country && <InfoItem icon={MdLanguage} label="بلد المنشأ" value={movie.country} />}
                             </div>
 
@@ -449,6 +466,44 @@ const MovieDetails = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Trailer Modal */}
+            <AnimatePresence>
+                {showTrailer && movie.trailer && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
+                        onClick={() => setShowTrailer(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.9, opacity: 0 }}
+                            className="relative w-full max-w-4xl aspect-video rounded-3xl overflow-hidden bg-black shadow-2xl border border-white/10"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <button
+                                onClick={() => setShowTrailer(false)}
+                                className="absolute top-4 right-4 z-10 w-10 h-10 flex items-center justify-center rounded-xl bg-black/50 text-white hover:bg-white/10 transition backdrop-blur-md"
+                            >
+                                <MdMovieFilter className="rotate-45" /> {/* Use close icon if available, but let's use IoMdArrowBack or similar */}
+                                <span className="absolute">✕</span>
+                            </button>
+
+                            <iframe
+                                src={`https://www.youtube.com/embed/${movie.trailer.split('v=')[1]}?autoplay=1`}
+                                title="Trailer"
+                                className="w-full h-full"
+                                frameBorder="0"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                            />
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

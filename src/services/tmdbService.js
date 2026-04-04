@@ -33,7 +33,7 @@ export const searchSeries = async (query) => {
 export const getMovieDetails = async (movieId) => {
     const [detailsRes, creditsRes, imagesRes] = await Promise.all([
         axios.get(`${BASE_URL}/movie/${movieId}`, {
-            params: { api_key: API_KEY, language: 'ar' }
+            params: { api_key: API_KEY, language: 'ar', append_to_response: 'videos', include_video_language: 'ar,en' }
         }),
         axios.get(`${BASE_URL}/movie/${movieId}/credits`, {
             params: { api_key: API_KEY, language: 'ar' }
@@ -56,12 +56,18 @@ export const getMovieDetails = async (movieId) => {
     const bestLogo = logos.find(l => l.iso_639_1 === 'en') || logos[0];
     const logoUrl = bestLogo ? `${BACKDROP_BASE}${bestLogo.file_path}` : null;
 
+    // استخراج التريلر (يفضل YouTube وبحث عن Trailer)
+    const videos = movie.videos?.results || [];
+    const trailer = videos.find(v => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser')) || videos[0];
+    const trailerUrl = trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : '';
+
     return {
         tmdbId: movie.id,
         title: movie.title,
         titleAr: movie.title,
         titleEn: movie.original_title,
         overview: movie.overview,
+        metatags: movie.genres?.map(g => g.name).join(', ') || '',
         poster: movie.poster_path ? `${IMAGE_BASE}${movie.poster_path}` : null,
         backdrop: movie.backdrop_path ? `${BACKDROP_BASE}${movie.backdrop_path}` : null,
         logo: logoUrl,
@@ -69,6 +75,7 @@ export const getMovieDetails = async (movieId) => {
         rating: movie.vote_average?.toFixed(1) || '0',
         duration: movie.runtime ? `${Math.floor(movie.runtime / 60)}h ${movie.runtime % 60}m` : '',
         genres: movie.genres?.map(g => g.name) || [],
+        trailer: trailerUrl,
         cast,
     };
 };
@@ -77,7 +84,7 @@ export const getMovieDetails = async (movieId) => {
 export const getSeriesDetails = async (seriesId) => {
     const [detailsRes, creditsRes, imagesRes] = await Promise.all([
         axios.get(`${BASE_URL}/tv/${seriesId}`, {
-            params: { api_key: API_KEY, language: 'ar' }
+            params: { api_key: API_KEY, language: 'ar', append_to_response: 'videos', include_video_language: 'ar,en' }
         }),
         axios.get(`${BASE_URL}/tv/${seriesId}/credits`, {
             params: { api_key: API_KEY, language: 'ar' }
@@ -100,12 +107,18 @@ export const getSeriesDetails = async (seriesId) => {
     const bestLogo = logos.find(l => l.iso_639_1 === 'en') || logos[0];
     const logoUrl = bestLogo ? `${BACKDROP_BASE}${bestLogo.file_path}` : null;
 
+    // استخراج التريلر
+    const videos = series.videos?.results || [];
+    const trailer = videos.find(v => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser')) || videos[0];
+    const trailerUrl = trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : '';
+
     return {
         tmdbId: series.id,
         title: series.name,
         titleAr: series.name,
         titleEn: series.original_name,
         overview: series.overview,
+        metatags: series.genres?.map(g => g.name).join(', ') || '',
         poster: series.poster_path ? `${IMAGE_BASE}${series.poster_path}` : null,
         backdrop: series.backdrop_path ? `${BACKDROP_BASE}${series.backdrop_path}` : null,
         logo: logoUrl,
@@ -114,6 +127,7 @@ export const getSeriesDetails = async (seriesId) => {
         seasonsCount: series.number_of_seasons || 0,
         episodesCount: series.number_of_episodes || 0,
         genres: series.genres?.map(g => g.name) || [],
+        trailer: trailerUrl,
         cast,
         seasons: series.seasons?.map(s => ({
             seasonNumber: s.season_number,
@@ -123,6 +137,7 @@ export const getSeriesDetails = async (seriesId) => {
         })) || [],
     };
 };
+
 
 // جلب حلقات موسم معين
 export const getSeasonEpisodes = async (seriesId, seasonNumber) => {
