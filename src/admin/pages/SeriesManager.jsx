@@ -19,6 +19,7 @@ import TMDBSearchModal from '../components/TMDBSearchModal';
 import BulkUrlReplacerModal from '../components/BulkUrlReplacerModal';
 import TagAlgoPickerModal from '../components/TagAlgoPickerModal';
 import { searchSeries, getSeriesDetails } from '../../services/tmdbService';
+import { slugify } from '../../utils/slugify';
 
 const emptySeriesForm = {
     title: '', titleAr: '', titleEn: '', overview: '', trailer: '', poster: '', backdrop: '', logo: '',
@@ -423,7 +424,9 @@ const SField = ({ label, value, onChange, placeholder }) => (
 );
 
 // إدارة المواسم والحلقات
-const SeasonsPanel = ({ seriesId, seasons, onUpdate }) => {
+const SeasonsPanel = ({ series, onUpdate }) => {
+    const seriesId = series.id;
+    const seasons = series.seasons;
     const EP_QUALITIES = ['FHD', 'HD', 'WEB-DL', '4K', '720p', '1080p'];
     const EP_SERVER_TYPES = ['embed', 'direct', 'iframe', 'hls', 'mp4', 'other'];
     const emptyEpServer = { name: '', quality: 'FHD', type: 'embed', watchLink: '', downloadLink: '' };
@@ -437,6 +440,8 @@ const SeasonsPanel = ({ seriesId, seasons, onUpdate }) => {
     const [bulkConfirm, setBulkConfirm] = useState(null);
     const [editingSeason, setEditingSeason] = useState(null);
     const [tagAlgoOpen, setTagAlgoOpen] = useState(false);
+    const [tagAlgoTarget, setTagAlgoTarget] = useState('single'); // 'single' or 'bulk'
+    const [dynamicSeriesName, setDynamicSeriesName] = useState('');
 
     const handleAddSeason = async () => {
         if (!newSeasonForm.seasonNumber) return;
@@ -524,20 +529,33 @@ const SeasonsPanel = ({ seriesId, seasons, onUpdate }) => {
     };
 
     const handleBulkGenerate = async () => {
-        const { baseUrl, count, seasonId } = bulkConfirm;
+        const { baseUrl, count, seasonId, startNum = 1, isTagAlgoPattern = false, seriesName = '', seasonNum = '1' } = bulkConfirm;
         setBulkConfirm(null);
 
         const numCount = parseInt(count, 10);
+        const start = parseInt(startNum, 10);
         setSaving(true);
         try {
-            for (let i = 1; i <= numCount; i++) {
+            for (let i = 0; i < numCount; i++) {
+                const currentEp = start + i;
+                const paddedEp = currentEp.toString().padStart(2, '0');
+                const seasonStr = seasonNum.toString(); // الموسم بدون حشو حسب مثال المستخدم
+                let finalUrl = '';
+
+                if (isTagAlgoPattern) {
+                    // Pattern: https://streaming.tagalgo.com/videos/series/{seriesName}/{seasonNum}/{episodeNum}/index.m3u8
+                    finalUrl = `https://streaming.tagalgo.com/videos/series/${seriesName}/${seasonStr}/${paddedEp}/index.m3u8`;
+                } else {
+                    finalUrl = setEpisodeUrl(baseUrl, currentEp);
+                }
+
                 const epFormAuto = {
-                    episodeNumber: i.toString(),
-                    name: `الحلقة ${i}`,
+                    episodeNumber: paddedEp,
+                    name: `الحلقة ${currentEp}`,
                     servers: [{
                         ...emptyEpServer,
                         name: 'سيرفر 1',
-                        watchLink: setEpisodeUrl(baseUrl, i)
+                        watchLink: finalUrl
                     }]
                 };
                 await addEpisode(seriesId, seasonId, epFormAuto);
@@ -547,6 +565,38 @@ const SeasonsPanel = ({ seriesId, seasons, onUpdate }) => {
         }
 
         setBulkForm({ baseUrl: '', count: '', show: false });
+        onUpdate();
+    };
+
+    const handleAddNextEpisode = async (season) => {
+        if (!season.episodes) return;
+
+        const sortedEps = [...season.episodes].sort((a, b) =>
+            parseInt(a.episodeNumber, 10) - parseInt(b.episodeNumber, 10)
+        );
+        const lastEp = sortedEps[sortedEps.length - 1];
+        const nextNum = (lastEp ? parseInt(lastEp.episodeNumber, 10) : 0) + 1;
+        const paddedEp = nextNum.toString().padStart(2, '0');
+        const seasonStr = season.seasonNumber.toString(); // بدون حشو
+
+        let watchLink = '';
+        if (dynamicSeriesName) {
+            watchLink = `https://streaming.tagalgo.com/videos/series/${dynamicSeriesName}/${seasonStr}/${paddedEp}/index.m3u8`;
+        } else if (lastEp?.servers?.[0]?.watchLink) {
+            watchLink = incrementEpisodeUrl(lastEp.servers[0].watchLink);
+        }
+
+        const autoForm = {
+            episodeNumber: paddedEp,
+            name: `الحلقة ${nextNum}`,
+            servers: [{
+                ...emptyEpServer,
+                name: 'سيرفر 1',
+                watchLink: watchLink
+            }]
+        };
+
+        await addEpisode(seriesId, season.id, autoForm);
         onUpdate();
     };
 
@@ -683,7 +733,7 @@ const SeasonsPanel = ({ seriesId, seasons, onUpdate }) => {
                                                     <p className="text-yellow-400 text-xs font-bold font-arabic">سيرفرات المشاهدة ({epForm.servers?.length || 0})</p>
                                                     <div className="flex items-center gap-2">
                                                         <button
-                                                            onClick={() => setTagAlgoOpen(true)}
+                                                            onClick={() => { setTagAlgoOpen(true); setTagAlgoTarget('single'); }}
                                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-bold border border-green-400/40 hover:border-green-400/80 transition-all"
                                                             style={{ background: 'linear-gradient(135deg, rgba(0,255,128,0.15), rgba(0,179,89,0.15))' }}
                                                         >
@@ -751,60 +801,99 @@ const SeasonsPanel = ({ seriesId, seasons, onUpdate }) => {
                                                 </button>
 
                                                 <button
-                                                    onClick={() => setBulkForm(p => ({ ...p, show: !p.show }))}
+                                                    onClick={() => handleAddNextEpisode(season)}
+                                                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg border border-cyan-500/20 text-cyan-400 hover:text-white hover:bg-cyan-500/10 transition text-sm font-arabic"
+                                                >
+                                                    <MdAdd /> الحلقة التالية
+                                                </button>
+
+                                                <button
+                                                    onClick={() => setBulkForm(p => ({ ...p, show: !p.show, seasonId: season.id }))}
                                                     className="flex-shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-lg bg-yellow-400 text-black font-bold text-xs font-arabic shadow-lg shadow-yellow-400/20 hover:scale-[1.02] active:scale-95 transition-all"
                                                 >
                                                     <MdPlayCircle className="text-lg" />
-                                                    إنشاء حلقات تلقائياً
+                                                    إضافة مجموعة حلقات
                                                 </button>
-
-                                                {season.episodes?.length > 0 && (
-                                                    <button
-                                                        onClick={() => handleAutoGenerateEpisode(season)}
-                                                        className="flex-shrink-0 p-2.5 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 transition"
-                                                        title="توليد الحلقة التالية"
-                                                    >
-                                                        <MdAdd className="text-lg" />
-                                                    </button>
-                                                )}
                                             </div>
 
-                                            {bulkForm.show && (
-                                                <div className="p-3 rounded-xl space-y-3 mt-2" style={{ background: 'rgba(255,215,0,0.05)', border: '1px solid rgba(255,215,0,0.2)' }}>
-                                                    <p className="text-yellow-400 text-xs font-bold font-arabic">توليد حلقات مجمع</p>
-                                                    <div className="grid grid-cols-4 gap-2">
-                                                        <input
-                                                            value={bulkForm.baseUrl}
-                                                            onChange={e => setBulkForm(p => ({ ...p, baseUrl: e.target.value }))}
-                                                            placeholder="الرابط الأساسي (مثال: .../01.mp4)"
-                                                            className="col-span-3 bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-xs focus:outline-none"
-                                                            dir="ltr"
-                                                        />
-                                                        <input
-                                                            type="number"
-                                                            value={bulkForm.count}
-                                                            onChange={e => setBulkForm(p => ({ ...p, count: e.target.value }))}
-                                                            placeholder="العدد"
-                                                            className="bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-xs text-center focus:outline-none"
-                                                        />
+                                            {bulkForm.show && bulkForm.seasonId === season.id && (
+                                                <div className="p-4 rounded-xl space-y-4 mt-2" style={{ background: 'rgba(255,215,0,0.05)', border: '1px solid rgba(255,215,0,0.2)' }}>
+                                                    <div className="flex items-center justify-between">
+                                                        <p className="text-yellow-400 text-xs font-bold font-arabic">إضافة حلقات مجمع (ديناميكي)</p>
+                                                        <button
+                                                            onClick={() => { setTagAlgoOpen(true); setTagAlgoTarget('bulk'); }}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-[10px] font-bold border border-green-400/40 hover:border-green-400/80 transition-all font-arabic"
+                                                            style={{ background: 'linear-gradient(135deg, rgba(0,255,128,0.15), rgba(0,179,89,0.15))' }}
+                                                        >
+                                                            <span className="text-green-400 text-sm">🌐</span> جلب من TagAlgo
+                                                        </button>
                                                     </div>
+
+                                                    {dynamicSeriesName && (
+                                                        <div className="p-3 bg-black/40 rounded-xl border border-white/5 space-y-1">
+                                                            <p className="text-gray-400 text-[10px] font-arabic">النمط المعتمد حالياً:</p>
+                                                            <code className="text-green-400 text-[10px] break-all truncate block" dir="ltr">
+                                                                .../{dynamicSeriesName}/{season.seasonNumber.toString().padStart(2, '0')}/[01, 02...]/index.m3u8
+                                                            </code>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="space-y-3">
+                                                        <div>
+                                                            <label className="text-gray-400 text-[10px] font-arabic mb-1 block">اسم المسلسل في TagAlgo</label>
+                                                            <input
+                                                                value={dynamicSeriesName}
+                                                                onChange={e => setDynamicSeriesName(e.target.value)}
+                                                                placeholder="مثال: بطل-العالم"
+                                                                className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-xs focus:outline-none focus:border-yellow-400/50"
+                                                                dir="auto"
+                                                            />
+                                                        </div>
+
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <div>
+                                                                <label className="text-gray-400 text-[10px] font-arabic mb-1 block">ابدأ من حلقة</label>
+                                                                <input
+                                                                    type="number"
+                                                                    value={bulkForm.startNum || '1'}
+                                                                    onChange={e => setBulkForm(p => ({ ...p, startNum: e.target.value }))}
+                                                                    className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-xs text-center focus:outline-none"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="text-gray-400 text-[10px] font-arabic mb-1 block">عدد الحلقات</label>
+                                                                <input
+                                                                    type="number"
+                                                                    value={bulkForm.count}
+                                                                    onChange={e => setBulkForm(p => ({ ...p, count: e.target.value }))}
+                                                                    placeholder="مثال: 10"
+                                                                    className="w-full bg-white/5 border border-white/10 rounded-lg py-2 px-3 text-white text-xs text-center focus:outline-none"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
                                                     <div className="flex gap-2">
                                                         <button
                                                             onClick={() => {
-                                                                if (!bulkForm.baseUrl || !bulkForm.count) return alert('الرجاء إدخال الرابط وعدد الحلقات');
-                                                                const numCount = parseInt(bulkForm.count, 10);
-                                                                if (isNaN(numCount) || numCount <= 0) return alert('عدد الحلقات غير صالح');
-                                                                setBulkConfirm({ ...bulkForm, seasonId: season.id });
+                                                                if (!dynamicSeriesName || !bulkForm.count) return alert('الرجاء إدخال اسم المسلسل وعدد الحلقات');
+                                                                setBulkConfirm({
+                                                                    count: bulkForm.count,
+                                                                    startNum: bulkForm.startNum || '1',
+                                                                    seasonId: season.id,
+                                                                    isTagAlgoPattern: true,
+                                                                    seriesName: dynamicSeriesName,
+                                                                    seasonNum: season.seasonNumber
+                                                                });
                                                             }}
                                                             disabled={saving}
                                                             className="flex-1 py-2 rounded-lg bg-yellow-400 text-black font-bold text-xs font-arabic disabled:opacity-50"
                                                         >
-                                                            {saving ? 'جارٍ الإنشاء...' : 'بدء الإنشاء'}
+                                                            {saving ? 'جارٍ الإنشاء...' : 'بدء الإنشاء المجمع'}
                                                         </button>
                                                         <button
-                                                            onClick={() => setBulkForm(p => ({ ...p, show: false }))}
-                                                            disabled={saving}
-                                                            className="px-4 py-2 rounded-lg bg-white/10 text-gray-400 text-xs font-arabic disabled:opacity-50"
+                                                            onClick={() => setBulkForm({ ...bulkForm, show: false })}
+                                                            className="px-4 py-2 rounded-lg bg-white/10 text-gray-400 text-xs font-arabic"
                                                         >
                                                             إلغاء
                                                         </button>
@@ -855,7 +944,37 @@ const SeasonsPanel = ({ seriesId, seasons, onUpdate }) => {
             <TagAlgoPickerModal
                 isOpen={tagAlgoOpen}
                 onClose={() => setTagAlgoOpen(false)}
-                onSelect={(srv) => setEpForm(p => ({ ...p, servers: [...(p.servers || []), srv] }))}
+                onSelect={(srv) => {
+                    let finalSrv = { ...srv };
+
+                    // إذا كان الرابط من TagAlgo لمسلسل، نقوم بإعادة بناء الرابط ليحتوي على الموسم والحلقة
+                    // النمط المطلوب: https://streaming.tagalgo.com/videos/series/{seriesName}/{seasonNum}/{episodeNum}/index.m3u8
+                    if (srv.watchLink?.includes('tagalgo.com/api/play/series/')) {
+                        const seriesSlug = dynamicSeriesName || slugify(series.titleAr || series.title);
+                        const currentSeason = seasons.find(s => s.id === expanded);
+                        const seasonNum = currentSeason ? currentSeason.seasonNumber : '1';
+                        const epNum = epForm.episodeNumber || '1';
+
+                        // الموسم (بدون حشو حسب مثال المستخدم) والحلقة (حشو رقمين)
+                        const paddedEp = epNum.toString().padStart(2, '0');
+
+                        finalSrv.watchLink = `https://streaming.tagalgo.com/videos/series/${seriesSlug}/${seasonNum}/${paddedEp}/index.m3u8`;
+                        finalSrv.type = 'hls';
+
+                        // حفظ اسم المسلسل ديناميكياً لتسهيل الإضافات التالية
+                        if (!dynamicSeriesName) setDynamicSeriesName(seriesSlug);
+                    }
+
+                    if (tagAlgoTarget === 'bulk') {
+                        setDynamicSeriesName(srv.videoName || '');
+                    } else {
+                        setEpForm(p => {
+                            const newServers = [...(p.servers || [])];
+                            newServers.push(finalSrv);
+                            return { ...p, servers: newServers };
+                        });
+                    }
+                }}
             />
         </div>
     );
@@ -1205,7 +1324,7 @@ const SeriesManager = () => {
                                 {expandedSeries === series.id && (
                                     <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
                                         <div className="p-4 border-t border-white/5">
-                                            <SeasonsPanel seriesId={series.id} seasons={series.seasons} onUpdate={load} />
+                                            <SeasonsPanel series={series} onUpdate={load} />
                                         </div>
                                     </motion.div>
                                 )}

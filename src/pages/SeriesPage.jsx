@@ -91,10 +91,26 @@ const SeriesPage = () => {
                 return;
             }
 
-            if (currentLink.includes('api.tagalgo.com/api/play/')) {
+            // Logic: if it's already an API play link OR it's a raw streaming.tagalgo.com link, we need to sign it
+            const isApiPlay = currentLink.includes('api.tagalgo.com/api/play/');
+            const isRawStreaming = currentLink.includes('streaming.tagalgo.com/videos/');
+
+            if (isApiPlay || isRawStreaming) {
                 setFetchingStream(true);
                 try {
-                    const response = await fetch(currentLink, { credentials: 'include' });
+                    let targetPlayUrl = currentLink;
+
+                    // If it's a raw streaming link, convert it to an API proxy link to get a signed URL
+                    if (isRawStreaming && !isApiPlay) {
+                        const pathMatch = currentLink.match(/streaming\.tagalgo\.com\/videos\/(.+)/);
+                        if (pathMatch) {
+                            // Correct path extraction: remove /index.m3u8 from end if present
+                            let relativePath = pathMatch[1].replace('/index.m3u8', '');
+                            targetPlayUrl = `https://api.tagalgo.com/api/play/${relativePath}`;
+                        }
+                    }
+
+                    const response = await fetch(targetPlayUrl, { credentials: 'include' });
                     if (!response.ok) throw new Error('فشل جلب رابط البث');
                     const data = await response.json();
                     setResolvedUrl(data.secureUrl);

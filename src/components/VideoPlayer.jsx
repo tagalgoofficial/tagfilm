@@ -132,10 +132,25 @@ const VideoPlayer = ({
                 enableWorker: true,
                 lowLatencyMode: true,
                 xhrSetup: (xhr, url) => {
-                    if (url.includes('.m3u8')) {
-                        xhr.withCredentials = true; // Manifest needs cookie
+                    let finalUrl = url;
+                    try {
+                        const manifestUrl = new URL(realSrc);
+                        const md5 = manifestUrl.searchParams.get('md5');
+                        const expires = manifestUrl.searchParams.get('expires');
+
+                        if (md5 || expires) {
+                            const targetUrl = new URL(url);
+                            if (md5) targetUrl.searchParams.set('md5', md5);
+                            if (expires) targetUrl.searchParams.set('expires', expires);
+                            finalUrl = targetUrl.toString();
+                            xhr.open('GET', finalUrl, true);
+                        }
+                    } catch (e) { }
+
+                    if (finalUrl.includes('.m3u8')) {
+                        xhr.withCredentials = true;
                     } else {
-                        xhr.withCredentials = false; // Segments (.ts) do not
+                        xhr.withCredentials = false;
                     }
                 }
             });

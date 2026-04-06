@@ -65,19 +65,29 @@ const MovieDetails = () => {
                 return;
             }
 
-            if (currentLink.includes('api.tagalgo.com/api/play/')) {
+            const isApiPlay = currentLink.includes('api.tagalgo.com/api/play/');
+            const isRawStreaming = currentLink.includes('streaming.tagalgo.com/videos/');
+
+            if (isApiPlay || isRawStreaming) {
                 setFetchingStream(true);
                 try {
-                    // استخدام fetch مع credentials أو axios إذا كان متاحاً
-                    const response = await fetch(currentLink, {
-                        credentials: 'include' // مهم لـ CORS مع TagAlgo
-                    });
+                    let targetPlayUrl = currentLink;
+
+                    if (isRawStreaming && !isApiPlay) {
+                        const pathMatch = currentLink.match(/streaming\.tagalgo\.com\/videos\/(.+)/);
+                        if (pathMatch) {
+                            let relativePath = pathMatch[1].replace('/index.m3u8', '');
+                            targetPlayUrl = `https://api.tagalgo.com/api/play/${relativePath}`;
+                        }
+                    }
+
+                    const response = await fetch(targetPlayUrl, { credentials: 'include' });
                     if (!response.ok) throw new Error('فشل جلب رابط البث');
                     const data = await response.json();
                     setResolvedUrl(data.secureUrl);
                 } catch (err) {
                     console.error("Error fetching secure URL:", err);
-                    setResolvedUrl(currentLink); // Fallback
+                    setResolvedUrl(currentLink);
                 }
                 setFetchingStream(false);
             } else {
